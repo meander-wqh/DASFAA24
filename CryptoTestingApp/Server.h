@@ -6,8 +6,8 @@
 
 class Server{
     public:
-        Server(); 
-        ~Server();
+        Server(); //构造函数 MIMC初始化
+        ~Server();//析构函数 MIMC初始化
         void ReceiveEncDoc(entry *encrypted_doc);
         void ReceiveTransactions(rand_t *t1_u_arr,rand_t *t1_v_arr,
                                  rand_t *t2_u_arr,rand_t *t2_v_arr,

@@ -15,6 +15,8 @@
 #include <list>
 #include "../common/data_type.h"
 
+using namespace std;
+
 // change to malloc for tokens, run ulimit -s 65536 to set stack size to 
 // 65536 KB in linux 
 
@@ -24,7 +26,7 @@ unsigned char KW[ENC_KEY_SIZE] = {0}; //关键字密钥
 unsigned char KC[ENC_KEY_SIZE] = {0}; //计数器密钥
 unsigned char KF[ENC_KEY_SIZE] = {0}; //文件密钥
 
-std::unordered_map<std::string, int> ST; //关键字与对应文件数量哈希表
+std::unordered_map<std::string, int> ST; //关键字与对应文件次数哈希表
 std::unordered_map<std::string, std::vector<std::string>> D; //关键字与被删文件ID哈希表
 
 std::vector<std::string> d; //被删文件ID列表
@@ -33,10 +35,33 @@ std::vector<std::string> d; //被删文件ID列表
 void ecall_init(unsigned char *keyF, size_t len){ 
 	d.reserve(750000); //初始化d
     memcpy(KF,keyF,len); //拷贝文件密钥到KF
-    sgx_read_rand(KW, ENC_KEY_SIZE); //产生真随机密钥KW
-    sgx_read_rand(KC, ENC_KEY_SIZE); //产生真随机密钥KC
+    sgx_read_rand(KW, ENC_KEY_SIZE); //产生真随机数KW，用于生成密钥k_w
+    sgx_read_rand(KC, ENC_KEY_SIZE); //产生真随机数KC，用于生成密钥k_c
+}
 
+void ecall_test(char* encrypted_content, size_t length_content){
+    size_t plain_doc_len = (size_t)length_content - AESGCM_MAC_SIZE - AESGCM_IV_SIZE;
+	unsigned char *plain_doc_content = (unsigned char *) malloc(plain_doc_len* sizeof(unsigned char));
+    //decrypt the cipher from the server
+    dec_aes_gcm(KF,encrypted_content,length_content,
+                plain_doc_content,plain_doc_len);
+    std::string doc_i((char*)plain_doc_content,plain_doc_len);
+    printf("Plain doc ==> %s\n",doc_i.c_str());
+    //free(plain_doc_content);
 
+    //修改密文内容，再次加密发送给server
+    //设置明文
+    printf("明文后再增加一个yangxu");
+    char* temp = "yangxu";
+    std::string new_plain_doc_content_temp = string((char*)plain_doc_content) + string(temp); 
+    const char *new_plain_doc_content = new_plain_doc_content_temp.c_str();
+    size_t new_plain_size = new_plain_doc_content_temp.length();
+    //初始化密文
+    size_t new_encrypted_size = AESGCM_MAC_SIZE + AESGCM_IV_SIZE + new_plain_size;
+    char* new_encrypted_content =  (char *) malloc(new_encrypted_size);
+    //加密
+    enc_aes_gcm(KF,new_plain_doc_content,new_plain_size,new_encrypted_content,new_encrypted_size);
+    ocall_test2(new_encrypted_content,new_encrypted_size);
 }
 
 /*** update with op=add */
@@ -50,47 +75,51 @@ void ecall_addDoc(char *doc_id, size_t id_length,char *content,int content_lengt
 
     //rand_t:消息数据结构
     rand_t t1_u_arr[pair_no];
-    rand_t t1_v_arr[pair_no];
+    rand_t t1_v_arr[pair_no]; 
     rand_t t2_u_arr[pair_no];
     rand_t t2_v_arr[pair_no];
 
     int index=0;
-
+    //对于doc中的每一个word，进行遍历，也就是说，一个doc中如果存多个相同的w，那么对于这个w，对于该doc有很多个c。
     for(std::vector<std::string>::iterator it = wordList.begin(); it != wordList.end(); ++it) {
       
       std::string word = (*it);
  
-      entryKey k_w, k_c; //entryKey:密钥结构体
+      entryKey k_w, k_c; //entryKey:密钥结构体？
 
       k_w.content_length = AESGCM_MAC_SIZE + AESGCM_IV_SIZE + word.length(); //k_w密钥长度
-	  k_w.content = (char *) malloc(k_w.content_length); //密文内容
+	  k_w.content = (char *) malloc(k_w.content_length); //k_w初始化
       //AES对称加密
       //parm1: 密钥 parm2:明文 parm3:明文长度; parm4:密文; parm5:密文长度
       enc_aes_gcm(KW,word.c_str(),word.length(),k_w.content,k_w.content_length);
     
 
       k_c.content_length = AESGCM_MAC_SIZE + AESGCM_IV_SIZE + word.length(); //k_c密钥长度
-	  k_c.content = (char *) malloc(k_c.content_length); //k_c密钥内容
+	  k_c.content = (char *) malloc(k_c.content_length); //k_c初始化
       //AES对称加密
       //parm1: 密钥 parm2:明文 parm3:明文长度; parm4:密文; parm5:密文长度
       enc_aes_gcm(KC,word.c_str(),word.length(),k_c.content,k_c.content_length);
           
-      int c=0;
+      int c=0;//对于每一个文件的计数器，初始化为0
 
       std::unordered_map<std::string,int>::const_iterator got = ST.find(word); //在关键字与对应文件数量哈希表中寻找关键字word对应键值对
       if ( got == ST.end()) {
+          //第一次加入，c == 0
           c = 0;  
       }else{
+          //非第一次加入，直接用second，因为操作结束后c++
         c = got->second;
       }
       c++;
 
       //find k_id
       unsigned char *k_id =  (unsigned char *) malloc(ENTRY_HASH_KEY_LEN_128); //初始化k_id,128bit 
+      //将c转为字符
       std::string c_str = std::to_string(c);
-      char const *c_char = c_str.c_str();
+      char const *c_char = c_str.c_str(); 
       //Hash-128
       //parm1: 哈希密钥 parm2:消息 parm3:消息长度; parm4:随机数 kid由此产生
+      //k_id <- H1(k_w,c) 
       hash_SHA128(k_w.content,c_char,c_str.length(),k_id);
 
       //len is used for hash_SHA128_key multiple times
@@ -100,14 +129,16 @@ void ecall_addDoc(char *doc_id, size_t id_length,char *content,int content_lengt
       unsigned char *_u = (unsigned char *) malloc(len * sizeof(unsigned char));
       //Hash-128
       //parm1: 哈希密钥 parm2:消息 parm3:消息长度; parm4:msg len;parm5:digist T1u 由此产生
+      //u <- H2(k_w,c)
       hash_SHA128_key(k_w.content,k_w.content_length, c_char,c_str.length(),_u);
-      memcpy(&t1_u_arr[index].content,_u,len);
+      memcpy(&t1_u_arr[index].content,_u,len); 
       t1_u_arr[index].content_length = len;
 
 
       size_t message_length = AESGCM_MAC_SIZE + AESGCM_IV_SIZE + id_length;
       char* message = (char *) malloc(message_length);
-        
+
+      //k_id加密id
       enc_aes_gcm(k_id,doc_id,id_length,message,message_length);
       memcpy(&t1_v_arr[index].content,(unsigned char*)message,message_length);
       t1_v_arr[index].content_length = message_length;
@@ -190,14 +221,18 @@ void ecall_search(const char *keyword, size_t keyword_len){
 
     	//retrieve encrypted doc
         /***********this is an ocall**************************************/
+        //调用结束后encrypted_content中保存了文件内容的密文
         ocall_retrieve_encrypted_doc(del_id.c_str(),del_id.size(),
                                      encrypted_content,BUFLEN * sizeof(unsigned char),
                                      &length_content,sizeof(int));
         /****************************************************************/
-        //decrypt the doc
+        //decrypt the doc 内容解密
+        //设置明文长度
         size_t plain_doc_len = (size_t)length_content - AESGCM_MAC_SIZE - AESGCM_IV_SIZE;
-	    unsigned char *plain_doc_content = (unsigned char *) malloc(plain_doc_len* sizeof(unsigned char));
+	    //根据长度进行密文的初始化
+        unsigned char *plain_doc_content = (unsigned char *) malloc(plain_doc_len* sizeof(unsigned char));
         //decrypt the cipher from the server
+        //解密
         dec_aes_gcm(KF,encrypted_content,length_content,
                     plain_doc_content,plain_doc_len);
         
@@ -208,9 +243,10 @@ void ecall_search(const char *keyword, size_t keyword_len){
 
         //update all the states for all keywords
         std::vector<std::string> wordList;
-	
+        //分词
         wordList = wordTokenize((char*)plain_doc_content,plain_doc_len);
-	//printf("%s:%d", del_id.c_str(), wordList.size());
+	    //printf("%s:%d", del_id.c_str(), wordList.size());
+        //对于每一个关键词w，都对于d中的被删除id进行操作，即将该id加入到该关键词的D[w]中
         for(std::vector<std::string>::iterator it = wordList.begin(); it != wordList.end(); ++it) {
       
             std::string keyword_str = (*it);
@@ -235,6 +271,7 @@ void ecall_search(const char *keyword, size_t keyword_len){
         free(plain_doc_content);
         memset(encrypted_content, 0, BUFLEN * sizeof(unsigned char));
         length_content = 0;
+        //Question:暂时没有看到delete R[id]操作
     }
 
     //free memory
@@ -257,13 +294,14 @@ void ecall_search(const char *keyword, size_t keyword_len){
     //printf("c max value [1-c] %d", w_c_max);
 
     //init st_w_c and Q_w
+    //st_w_c先是保存了从1到该关键词w的c值的所有值（这个时候还没有删除已经删除的文件id）
     std::vector<int> st_w_c;
-        for(int i_c = 1; i_c <= w_c_max;i_c++)
-                st_w_c.push_back(i_c);
+    for(int i_c = 1; i_c <= w_c_max;i_c++)
+        st_w_c.push_back(i_c);
 
     std::vector<int> st_w_c_difference;
 
-
+    //
     size_t _u_prime_size = ENTRY_HASH_KEY_LEN_128 + k_w.content_length;
     unsigned char *_u_prime = (unsigned char *) malloc(_u_prime_size * sizeof(unsigned char));
     unsigned char *_v_prime = (unsigned char *) malloc(ENTRY_VALUE_LEN * sizeof(unsigned char));
@@ -276,8 +314,10 @@ void ecall_search(const char *keyword, size_t keyword_len){
         for(auto&& id_del: matched_id_del){
          
             //retrieve a pair (u',v')
+            //u_prime<-H3(k_w,id)
             hash_SHA128_key(k_w.content,k_w.content_length, (unsigned char*)id_del.c_str(),id_del.size(),_u_prime);
             //retrieve v' from an ocall
+            //在M_c中根据刚刚生成的u_prime找到v_prime
             ocall_retrieve_M_c(_u_prime,_u_prime_size * sizeof(unsigned char),
                                      _v_prime,ENTRY_VALUE_LEN * sizeof(unsigned char),
                                      &_v_prime_size,sizeof(int));
@@ -286,6 +326,7 @@ void ecall_search(const char *keyword, size_t keyword_len){
             size_t c_value_len = (size_t)_v_prime_size - AESGCM_MAC_SIZE - AESGCM_IV_SIZE;
             //use v' to calculate c c_value_content
 	        unsigned char *c_value_content = (unsigned char *) malloc(c_value_len* sizeof(unsigned char)); 
+            //解密获得c
             dec_aes_gcm(k_c.content,_v_prime,_v_prime_size,
                     c_value_content,c_value_len);
             
@@ -317,6 +358,7 @@ void ecall_search(const char *keyword, size_t keyword_len){
 
     std::vector<int> merged_st;
 
+    //取两者的差集，操作完毕后将w中已经被删除文件id给去除，结果存在merged_st中
     std::set_difference(st_w_c.begin(), st_w_c.end(),
     		st_w_c_difference.begin(), st_w_c_difference.end(),
    			std::back_inserter(merged_st));
@@ -327,7 +369,9 @@ void ecall_search(const char *keyword, size_t keyword_len){
     //declare query tokens for ocall
     int batch = pair_no / BATCH_SIZE;
 
+    //存放一个批次的u，一个u的长度为 size_t len = ENTRY_HASH_KEY_LEN_128 + k_w.content_length;
     rand_t *Q_w_u_arr = (rand_t *) malloc(BATCH_SIZE * sizeof(rand_t));
+    //存放一个批次的k_id,一个k_id的长度为ENTRY_HASH_KEY_LEN_128
     rand_t *Q_w_id_arr = (rand_t *) malloc(BATCH_SIZE * sizeof(rand_t));
     
     int index=0;
@@ -336,11 +380,14 @@ void ecall_search(const char *keyword, size_t keyword_len){
     unsigned char *k_id =  (unsigned char *) malloc(ENTRY_HASH_KEY_LEN_128); 
 
     // do batch process
+    //假设pair_no = 15000
     for(int i = 0; i <= batch; i++) {
     	// determine the largest sequence no. in the current batch
+        //本批次最大的一个id是哪个
     	int limit = BATCH_SIZE * (i + 1) > pair_no ? pair_no : BATCH_SIZE * (i + 1);
 
     	// determine the # of tokens in the current batch
+        //本批次的长度
     	int length = BATCH_SIZE * (i + 1) > pair_no ? pair_no - BATCH_SIZE * i : BATCH_SIZE;
 
     	for(int j = BATCH_SIZE * i; j < limit; j++) {
@@ -349,6 +396,7 @@ void ecall_search(const char *keyword, size_t keyword_len){
     		char const *c_char = c_str.c_str();
 
     		unsigned char *_u = (unsigned char *) malloc(len * sizeof(unsigned char));
+            //生成u
     		hash_SHA128_key(k_w.content,k_w.content_length, c_char,c_str.length(),_u);
 
     		memcpy(Q_w_u_arr[j - BATCH_SIZE * i].content,_u,len);
@@ -363,13 +411,13 @@ void ecall_search(const char *keyword, size_t keyword_len){
     		Q_w_id_arr[j - BATCH_SIZE * i].content_length = ENTRY_HASH_KEY_LEN_128;
 
     		//reset k_id
-    		 memset(k_id, 0, ENTRY_HASH_KEY_LEN_128 * sizeof(unsigned char));
+    		memset(k_id, 0, ENTRY_HASH_KEY_LEN_128 * sizeof(unsigned char));
 
     		//free memory
     		free(_u);
     	}
 
-    	//send Q_w to Server
+    	//send Q_w to Server，在Server中会对于Q_w进行查询，然后输出对应的id
     	ocall_query_tokens_entries(Q_w_u_arr, Q_w_id_arr,
 				length, sizeof(rand_t));
     }

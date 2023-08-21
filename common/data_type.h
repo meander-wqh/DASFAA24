@@ -16,12 +16,12 @@
 
 const std::string raw_doc_dir= "streaming/"; 
 
-#define AESGCM_IV_SIZE 12
+#define AESGCM_IV_SIZE 12//Question: AES加密算法需要的参数？补全长度？
 static unsigned char gcm_iv[] = {
     0x99, 0xaa, 0x3e, 0x68, 0xed, 0x81, 0x73, 0xa0, 0xee, 0xd0, 0x66, 0x84
 };
 
-#define AESGCM_MAC_SIZE 16
+#define AESGCM_MAC_SIZE 16//Question: AES加密算法需要的参数？补全长度？
 
 #define MAX_FILE_LENGTH 10 
 
@@ -46,12 +46,13 @@ typedef struct docIds {
     size_t id_length;  // length of the doc_id
 } docId; 
 
-// 密钥
+// 密钥？应该是 键值对中的键
 typedef struct entryKeys {
     char *content; 
     size_t content_length;  // length of the entry_value
 } entryKey;
 
+//明文
 typedef struct entryValues {
     char *message; 
     size_t message_length;  // length of the entry_value
@@ -64,6 +65,6 @@ typedef struct docContents{
     //std::vector<std::string> wordList;
 } docContent;
 
-typedef std::pair<entryKey, entryValue> entry;
+typedef std::pair<entryKey, entryValue> entry;//entry登记 ,作为密文
 
 #endif

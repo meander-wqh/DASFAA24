@@ -14,10 +14,10 @@ void print_bytes(uint8_t *ptr, uint32_t len);
 
 int enc_aes_gcm(const unsigned char *plaintext, int plaintext_len,
                 const unsigned char *key,
-                unsigned char *ciphertext);
+                unsigned char *ciphertext);//加密
 
 int dec_aes_gcm(unsigned char *ciphertext, int ciphertext_len,
                 const unsigned char *key,
-                unsigned char *plaintext);
+                unsigned char *plaintext);//解密
 
 #endif

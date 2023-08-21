@@ -15,7 +15,7 @@
 
 class Client{
     public:
-        Client();
+        Client();//构造函数
         void ReadNextDoc(docContent *fetch_data);
         void Del_GivenDocIndex(const int del_index, docId* delV_i);
         void Del_GivenDocArray(const int * del_arr, docId* delV, int n);
@@ -24,7 +24,7 @@ class Client{
         void DecryptDocCollection(std::vector<std::string> Res);
 
     private:
-        unsigned char KF[ENC_KEY_SIZE];
+        unsigned char KF[ENC_KEY_SIZE];//KF密钥
         int file_reading_counter;
 };
  

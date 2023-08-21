@@ -40,6 +40,7 @@ void  clear(uint8_t *dest, uint32_t len){
     }
 }
 
+//将文档 content分词，分词符号为","
 std::vector<std::string>  wordTokenize(char *content,int content_length){
     char delim[] = ",";//" ,.-";
     std::vector<std::string> result;
@@ -141,12 +142,14 @@ int hash_SHA128(const void *key, const void *msg, int msg_len, void *value){
 }
 
 //make sure the key is 16 bytes and appended to the digest
+//这是在hash结束后的value后面加上16位的key
 int hash_SHA128_key(const void *key, int key_len, const void *msg, int msg_len, void *value){
     
     int result;
     result = hash_SHA128(key,msg,msg_len,value);
     if (result==1) {
-        memcpy(value+ENTRY_HASH_KEY_LEN_128,key,key_len);
+        //这是在hash结束后的value后面加上16位的key
+        memcpy(value+ENTRY_HASH_KEY_LEN_128,key,key_len); 
         return 1;
     } else{
         printf("[*] hash error line 163: %d\n", result);

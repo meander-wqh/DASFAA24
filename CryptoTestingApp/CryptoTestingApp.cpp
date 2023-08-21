@@ -15,7 +15,8 @@
 #include <cstdint>
 #include <chrono>
 #include <iostream>
-uint64_t timeSinceEpochMillisec() {
+uint64_t timeSinceEpochMillisec() {//截取以纪元时间为单位获取当前时间戳，以毫秒为单位
+
   using namespace std::chrono;
   return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
@@ -58,6 +59,18 @@ Server *myServer; //extern to separate ocall
 void ocall_print_string(const char *str) {
     printf("%s\n", str);
 }
+void ocall_test(int* mint,char* mchar,char* mstring,int len) {
+	//encrypt and send to Ser
+    printf("int1为%d",mint[0]);
+    printf("char1为%c",mchar[0]);
+    printf("string1为%s",mstring);
+}
+void ocall_test2(char* encrypted_content, size_t length_content){
+	std::string res(encrypted_content,length_content);
+	std::vector<std::string> REs;
+	REs.push_back(res); 
+	myClient->DecryptDocCollection(REs);
+}
 
 //server接受enclave传来的T1,T2
 void ocall_transfer_encrypted_entries(const void *_t1_u_arr,
@@ -73,15 +86,14 @@ void ocall_transfer_encrypted_entries(const void *_t1_u_arr,
 
 }
 
+
 void ocall_retrieve_encrypted_doc(const char *del_id, size_t del_id_len, 
                                   unsigned char *encrypted_content, size_t maxLen,
                                   int *length_content, size_t int_size){
 								  
 	std::string del_id_str(del_id,del_id_len);	
 	std::string encrypted_entry = myServer->Retrieve_Encrypted_Doc(del_id_str);
-	
     *length_content = (int)encrypted_entry.size();
-
 	//later double check *length_content exceeds maxLen
     memcpy(encrypted_content, (unsigned char*)encrypted_entry.c_str(),encrypted_entry.size());
 }
@@ -127,13 +139,13 @@ void ocall_query_tokens_entries(const void *Q_w_u_arr,
 int main()
 {
 	/* Setup enclave */
-	sgx_enclave_id_t eid;
-	sgx_status_t ret;
+	sgx_enclave_id_t eid; //sgx id
+	sgx_status_t ret; //sgx状态类型
 	sgx_launch_token_t token = { 0 };
 	int token_updated = 0;
 
 	/********************创建enclave环境****************************/
-	ret = sgx_create_enclave(ENCLAVE_FILE, SGX_DEBUG_FLAG, &token, &token_updated, &eid, NULL);
+	ret = sgx_create_enclave(ENCLAVE_FILE, SGX_DEBUG_FLAG, &token, &token_updated, &eid, NULL); //eid
 	if (ret != SGX_SUCCESS)
 	{
 		printf("sgx_create_enclave failed: %#x\n", ret);
@@ -144,108 +156,152 @@ int main()
 	/* Setup Protocol*/
 	//Client
 	myClient= new Client();
-
-	//Enclave
-	unsigned char KFvalue[ENC_KEY_SIZE]; //文件密钥kF
-	myClient->getKFValue(KFvalue);
-	/**********************初始化enclave中数据结构******************/
-	//生成Kw kc
-	ecall_init(eid,KFvalue,(size_t)ENC_KEY_SIZE); 
-	/**************************************************************/
-
 	//Server	
 	myServer= new Server();
 
-	printf("Adding doc\n");
+	//Enclave
+	unsigned char KFvalue[ENC_KEY_SIZE]; //文件密钥kF
+	myClient->getKFValue(KFvalue);//赋值KFvalue到myClient对象中的KF，这里KFvalue被KF赋值，KFvalue其实用来生成kw和kc
 	
-	/*** 处理插入操作Update Protocol with op = add */
-	uint64_t start_add_time =  timeSinceEpochMillisec(); //插入操作开始时间
-	for(int i=1;i <= total_file_no; i++){  //total_file_no
-		//client read a document
-		//printf("->%d",i);
-		docContent *fetch_data;
-		fetch_data = (docContent *)malloc(sizeof( docContent));
-        //获取下一篇doc
-		myClient->ReadNextDoc(fetch_data);
+	/**********************初始化enclave中数据结构******************/
+	//生成Kw kc
+	ecall_init(eid,KFvalue,(size_t)ENC_KEY_SIZE); 
+	/****************************test******************************/
+	//设置docContent
+	docContent *fetch_data;
+	fetch_data = (docContent *)malloc(sizeof(docContent));
+	std::string test1 = "id";
+	std::string test2 = "yangxuyangxuyangxuyangxu";
+	fetch_data->id.id_length = test1.length()+1;
+	fetch_data->content_length = test2.length()+1;
+	fetch_data->content = (char*) malloc(fetch_data->content_length);
+	fetch_data->id.doc_id = (char*)malloc(fetch_data->id.id_length);
+	memcpy(fetch_data->id.doc_id, test1.c_str(),fetch_data->id.id_length);
+	memcpy(fetch_data->content, test2.c_str(),fetch_data->content_length);
+	//设置密文实体
+	entry *encrypted_entry;
+	encrypted_entry = (entry*)malloc(sizeof(entry));
+	encrypted_entry->first.content_length = fetch_data->id.id_length; //add dociId
+	encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
+	encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//f
+	encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
+	//加密操作
+	myClient->EncryptDoc(fetch_data,encrypted_entry);
+	//发送到enclave中
+	ecall_test(eid,encrypted_entry->second.message,encrypted_entry->second.message_length);
+	
+	free(fetch_data->content);
+	free(fetch_data->id.doc_id);
+	free(fetch_data);
+	
+	free(encrypted_entry->first.content);
+	free(encrypted_entry->second.message);
+	free(encrypted_entry);
 
-		//encrypt and send to Server
-		entry *encrypted_entry;
-		encrypted_entry = (entry*)malloc(sizeof(entry));
+
+
+
+
+
+
+
+
+
+	/****************************actual opreation******************************/
+	// printf("Adding doc\n");
+	
+	// /*** 处理插入操作Update Protocol with op = add */
+	// uint64_t start_add_time =  timeSinceEpochMillisec(); //插入操作开始时间
+	// for(int i=1;i <= total_file_no; i++){  //total_file_no 多个Update
+	// 	//client read a document
+	// 	//printf("->%d",i);
+	// 	docContent *fetch_data;//原始文档
+	// 	fetch_data = (docContent *)malloc(sizeof( docContent));
+    //     //获取下一篇doc
+	// 	myClient->ReadNextDoc(fetch_data);
+
+	// 	//encrypt and send to Server 
+	// 	entry *encrypted_entry;
+	// 	encrypted_entry = (entry*)malloc(sizeof(entry));
 		
-		encrypted_entry->first.content_length = fetch_data->id.id_length; //add dociId
-		encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
-		encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;		
-		encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
+	// 	encrypted_entry->first.content_length = fetch_data->id.id_length; //初始化长度
+	// 	encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
+	// 	encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//初始化长度
+	// 	encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
 
-		//客户端对doc进行加密,结果存入entry
-		myClient->EncryptDoc(fetch_data,encrypted_entry);
+	// 	//客户端对doc进行加密,结果存入entry实体中
+	// 	myClient->EncryptDoc(fetch_data,encrypted_entry);
 		
-		//send(id,f) to server
-		myServer->ReceiveEncDoc(encrypted_entry);
+	// 	//send(id,f) to server
+	// 	myServer->ReceiveEncDoc(encrypted_entry);
 		
-		//upload (op,id) to Enclave
-		/*****************更新enclave中数据结构*************************/
-		ecall_addDoc(eid,fetch_data->id.doc_id,fetch_data->id.id_length,
-						fetch_data->content,fetch_data->content_length);
-		/**************************************************************/
+	// 	//upload (op,id) to Enclave
+	// 	/*****************更新enclave中数据结构*************************/
+	// 	//encalve Update所有操作
+	// 	//Question: 这个多出一个sgx id的参数是sgx的特性吗？
+	// 	ecall_addDoc(eid,fetch_data->id.doc_id,fetch_data->id.id_length,
+	// 				fetch_data->content,fetch_data->content_length);
+	// 	/**************************************************************/
 
-		//free memory 
-		free(fetch_data->content);
-		free(fetch_data->id.doc_id);
-		free(fetch_data);
+	// 	//free memory 
+	// 	free(fetch_data->content);
+	// 	free(fetch_data->id.doc_id);
+	// 	free(fetch_data);
 
-		free(encrypted_entry->first.content);
-		free(encrypted_entry->second.message);
-		free(encrypted_entry);
-	}
-	uint64_t end_add_time =  timeSinceEpochMillisec(); //插入操作结束时间
-	std::cout << "********Time for adding********" << std::endl;
-	std::cout << "Total time:" << end_add_time-start_add_time << " ms" << std::endl;
-	std::cout << "Average time (file):" << (end_add_time-start_add_time)*1.0/total_file_no << " ms" << std::endl;
-	std::cout << "Average time (pair):" << (end_add_time-start_add_time)*1.0/total_pair_no << " ms" << std::endl;
+	// 	free(encrypted_entry->first.content);
+	// 	free(encrypted_entry->second.message);
+	// 	free(encrypted_entry);
+	// }
+	// uint64_t end_add_time =  timeSinceEpochMillisec(); //插入操作结束时间
+	// std::cout << "********Time for adding********" << std::endl;
+	// std::cout << "Total time:" << end_add_time-start_add_time << " ms" << std::endl;
+	// std::cout << "Average time (file):" << (end_add_time-start_add_time)*1.0/total_file_no << " ms" << std::endl;
+	// std::cout << "Average time (pair):" << (end_add_time-start_add_time)*1.0/total_pair_no << " ms" << std::endl;
 
-	//** 处理删除操作Update Protocol with op = del (id)
-	printf("\nDeleting doc\n");
-	uint64_t start_del_time =  timeSinceEpochMillisec(); //删除操作开始时间
-	//docId* delV = new docId[del_no];
-	docId delV_i; //docID:文件ID数据结构
-	for(int del_index=1; del_index <=del_no; del_index++){
-		//printf("->%s",delV_i[del_index].doc_id);
-		myClient->Del_GivenDocIndex(del_index, &delV_i);
-        /*****************在enclave中查询关键字*************************/
-		ecall_delDoc(eid,delV_i.doc_id,delV_i.id_length);
-        /**************************************************************/
-	}
-	uint64_t end_del_time =  timeSinceEpochMillisec(); //删除操作结束时间
-	std::cout << "********Time for deleting********" << std::endl;
-	std::cout << "Total time:" << end_del_time-start_del_time << " ms" << std::endl;
-	std::cout << "Average time:" << (end_del_time-start_del_time)*1.0/del_no << " ms" << std::endl;
+	// //** 处理删除操作Update Protocol with op = del (id)
+	// printf("\nDeleting doc\n");
+	// uint64_t start_del_time =  timeSinceEpochMillisec(); //删除操作开始时间
+	// //docId* delV = new docId[del_no];
+	// docId delV_i; //docID:文件ID数据结构
+	// for(int del_index=1; del_index <=del_no; del_index++){
+	// 	//printf("->%s",delV_i[del_index].doc_id);
+	// 	myClient->Del_GivenDocIndex(del_index, &delV_i);
+    //     /*****************在enclave中查询关键字*************************/
+	// 	ecall_delDoc(eid,delV_i.doc_id,delV_i.id_length); //加入到 d 列表
+    //     /**************************************************************/
+	// }
+	// uint64_t end_del_time =  timeSinceEpochMillisec(); //删除操作结束时间
+	// std::cout << "********Time for deleting********" << std::endl;
+	// std::cout << "Total time:" << end_del_time-start_del_time << " ms" << std::endl;
+	// std::cout << "Average time:" << (end_del_time-start_del_time)*1.0/del_no << " ms" << std::endl;
 
-	free(delV_i.doc_id);
+	// free(delV_i.doc_id);
 
-	// std::string s_keyword[2]= {"list","clinton"}; 
-	std::string s_keyword[1]= {"bird"};
-	int keyword_count = 1; //查询关键字的数量
-	std::cout << "********Time for searching********" << std::endl;
-	uint64_t total_search_time = 0;
-	for (int s_i = 0; s_i < keyword_count; s_i++){
-		std::cout << "Searching ==>" << s_keyword[s_i].c_str() << std::endl;
-		// printf("\nSearching ==> %s\n", s_keyword[s_i].c_str());
-		uint64_t start_time =  timeSinceEpochMillisec();
-		// std::cout << timeSinceEpochMillisec() << std::endl;
-        /*****************将文档id加入删除list*************************/
-		ecall_search(eid, s_keyword[s_i].c_str(), s_keyword[s_i].size());
-        /*****************将文档id加入删除list*************************/
-        uint64_t end_time =  timeSinceEpochMillisec();
-		// std::cout << timeSinceEpochMillisec() << std::endl;
-		std::cout << "Elapsed time:" << end_time-start_time << " ms"  << std::endl;
-		total_search_time += end_time-start_time;
-	}
-	std::cout << "Total time:" << total_search_time << " ms" << std::endl;
-	std::cout << "Average time:" << total_search_time*1.0/keyword_count << " ms" << std::endl;
+	
+    // /*** 处理搜索操作***/
+	// // std::string s_keyword[2]= {"list","clinton"}; 
+	// std::string s_keyword[1]= {"bird"};
+	// int keyword_count = 1; //查询关键字的数量
+	// std::cout << "********Time for searching********" << std::endl;
+	// uint64_t total_search_time = 0;
+	// for (int s_i = 0; s_i < keyword_count; s_i++){
+	// 	std::cout << "Searching ==>" << s_keyword[s_i].c_str() << std::endl;
+	// 	// printf("\nSearching ==> %s\n", s_keyword[s_i].c_str());
+	// 	uint64_t start_time =  timeSinceEpochMillisec();
+	// 	// std::cout << timeSinceEpochMillisec() << std::endl;
+    //     /*****************将文档id加入删除list*************************/
+	// 	ecall_search(eid, s_keyword[s_i].c_str(), s_keyword[s_i].size());//直接对应第三部分Search的所有流程
+    //     /*****************将文档id加入删除list*************************/
+    //     uint64_t end_time =  timeSinceEpochMillisec();
+	// 	// std::cout << timeSinceEpochMillisec() << std::endl;
+	// 	std::cout << "Elapsed time:" << end_time-start_time << " ms"  << std::endl;
+	// 	total_search_time += end_time-start_time;
+	// }
+	// std::cout << "Total time:" << total_search_time << " ms" << std::endl;
+	// std::cout << "Average time:" << total_search_time*1.0/keyword_count << " ms" << std::endl;
 
-	delete myClient;
-	delete myServer;
+	// delete myClient;
+	// // delete myServer;
 
 	return 0;
 }

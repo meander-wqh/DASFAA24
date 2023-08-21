@@ -9,11 +9,12 @@ enclave {
         public void ecall_addDoc([in, size=id_length] char *doc_id, size_t id_length, [in, size=content_length] char *content, int content_length);
         public void ecall_delDoc([in, size=id_length] char *doc_id, size_t id_length);
         public void ecall_search([in, size=len] const char *keyword, size_t len);
-
+        public void ecall_test([in, size = length_content] char* encrypted_content, size_t length_content);
     };
 
     untrusted {
-
+        void ocall_test2([in, size = length_content] char* encrypted_content, size_t length_content);
+        void ocall_test([in, count = 1] int* mint,[in,size = 1] char* mchar,[in,size=len] char* mstring,int len);
         void ocall_print_string([in, string] const char *str);
         void ocall_transfer_encrypted_entries([in, count= pair_count, size=rand_size] const void *t1_u_arr, 
 									            [in, count= pair_count, size=rand_size] const void *t1_v_arr, 
