@@ -20,7 +20,7 @@ void print_bytes(uint8_t *ptr, uint32_t len) {
     printf("%x", *(ptr + i));
   }
 
-  printf("\n");
+//   printf("\n");
 }
 
 

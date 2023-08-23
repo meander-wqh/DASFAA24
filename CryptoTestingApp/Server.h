@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include "../common/data_type.h"
+#include "compactedLDCF.h"
 #include "Utils.h"
 
 class Server{
@@ -26,11 +27,16 @@ class Server{
 								rand_t *Q_w_u_arr,rand_t *Q_w_id_arr,
 								int pair_count);
 
+        std::string Get_Value(std::string config_buff);
+        Config Read_Config(const std::string path);
         
     private:
         std::unordered_map<std::string,std::string> M_I;
         std::unordered_map<std::string,std::string> M_c;
         std::unordered_map<std::string,std::string> R_Doc;
+        std::unordered_map<std::string,std::string> TSet;
+        std::unordered_map<std::string,std::string> iTSet;
+        CompactedLogarithmicDynamicCuckooFilter* cldcf;
 };
  
 #endif

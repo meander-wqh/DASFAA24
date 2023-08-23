@@ -23,8 +23,15 @@ class Client{
         void EncryptDoc(const docContent *data, entry *encrypted_doc );
         void DecryptDocCollection(std::vector<std::string> Res);
 
+        void GetKTValue(unsigned char* outKey);
+        void GetKZValue(unsigned char* outKey);
+        void GetKXValue(unsigned char* outKey);
+
     private:
         unsigned char KF[ENC_KEY_SIZE];//KF密钥
+        unsigned char K_T[ENC_KEY_SIZE];//KF密钥
+        unsigned char K_Z[ENC_KEY_SIZE];//KF密钥
+        unsigned char K_X[ENC_KEY_SIZE];//KF密钥
         int file_reading_counter;
 };
  

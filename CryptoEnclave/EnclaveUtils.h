@@ -16,7 +16,7 @@ void printf( const char *fmt, ...);
 void print_bytes(uint8_t *ptr, uint32_t len);
 int  cmp(const uint8_t *value1, const uint8_t *value2, uint32_t len);
 void clear(uint8_t *dest, uint32_t len);
-std::vector<std::string>  wordTokenize(char *content,int content_length);
+std::vector<std::string> wordTokenize(char *content,int content_length);
 
 void enc_aes_gcm(const void *key, const void *plaintext, size_t plaintext_len, void *ciphertext, size_t ciphertext_len);
 void dec_aes_gcm(const void *key, const void *ciphertext, size_t ciphertext_len, void *plaintext, size_t plaintext_len);

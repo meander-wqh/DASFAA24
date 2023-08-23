@@ -14,6 +14,8 @@
 #include <vector>
 #include <list>
 #include "../common/data_type.h"
+#include "cuckoofilter.h"
+#include "linktree.h"
 
 using namespace std;
 
@@ -21,13 +23,22 @@ using namespace std;
 // 65536 KB in linux 
 
 
-// local variables inside Enclave
+//local variables inside Enclave
 unsigned char KW[ENC_KEY_SIZE] = {0}; //关键字密钥
 unsigned char KC[ENC_KEY_SIZE] = {0}; //计数器密钥
 unsigned char KF[ENC_KEY_SIZE] = {0}; //文件密钥
 
+unsigned char K_T[ENC_KEY_SIZE] = {0}; 
+unsigned char K_Z[ENC_KEY_SIZE] = {0}; 
+unsigned char K_X[ENC_KEY_SIZE] = {0}; 
+
 std::unordered_map<std::string, int> ST; //关键字与对应文件次数哈希表
 std::unordered_map<std::string, std::vector<std::string>> D; //关键字与被删文件ID哈希表
+std::unordered_map<std::string, int> UpdateCnt;
+// std::unordered_map<std::string, CuckooFilter*> CFs;
+// LinkTree cf_tree = new LinkTree();
+
+
 
 std::vector<std::string> d; //被删文件ID列表
 
@@ -37,6 +48,15 @@ void ecall_init(unsigned char *keyF, size_t len){
     memcpy(KF,keyF,len); //拷贝文件密钥到KF
     sgx_read_rand(KW, ENC_KEY_SIZE); //产生真随机数KW，用于生成密钥k_w
     sgx_read_rand(KC, ENC_KEY_SIZE); //产生真随机数KC，用于生成密钥k_c
+}
+
+void ecall_get_key(unsigned char key_array[3][16]){
+    memcpy(K_T,key_array[0],ENC_KEY_SIZE);
+    memcpy(K_Z,key_array[1],ENC_KEY_SIZE);
+    memcpy(K_X,key_array[2],ENC_KEY_SIZE);
+    // print_bytes((uint8_t*)key_array[0],ENC_KEY_SIZE);
+    // print_bytes((uint8_t*)key_array[1],ENC_KEY_SIZE);
+    // print_bytes((uint8_t*)key_array[2],ENC_KEY_SIZE);
 }
 
 void ecall_test(char* encrypted_content, size_t length_content){
@@ -62,6 +82,14 @@ void ecall_test(char* encrypted_content, size_t length_content){
     //加密
     enc_aes_gcm(KF,new_plain_doc_content,new_plain_size,new_encrypted_content,new_encrypted_size);
     ocall_test2(new_encrypted_content,new_encrypted_size);
+}
+
+void ecall_hash_test(const char* data, size_t len){
+    //传进来的data会多一位
+    printf("%s", data);
+    std::string res = SGXHashFunc::sha256(data);
+    const char* cres = res.c_str();
+    ocall_print_string(cres);
 }
 
 /*** update with op=add */

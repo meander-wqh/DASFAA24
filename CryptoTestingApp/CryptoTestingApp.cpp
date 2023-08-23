@@ -57,7 +57,8 @@ Client *myClient; //extern to separate ocall
 Server *myServer; //extern to separate ocall
 
 void ocall_print_string(const char *str) {
-    printf("%s\n", str);
+    //printf("%s\n", str);
+	print_bytes((uint8_t*)str,strlen(str));
 }
 void ocall_test(int* mint,char* mchar,char* mstring,int len) {
 	//encrypt and send to Ser
@@ -162,41 +163,64 @@ int main()
 	//Enclave
 	unsigned char KFvalue[ENC_KEY_SIZE]; //文件密钥kF
 	myClient->getKFValue(KFvalue);//赋值KFvalue到myClient对象中的KF，这里KFvalue被KF赋值，KFvalue其实用来生成kw和kc
-	
+	unsigned char K_T[ENC_KEY_SIZE];
+	unsigned char K_Z[ENC_KEY_SIZE];
+	unsigned char K_X[ENC_KEY_SIZE];
+	myClient->GetKTValue(K_T);
+	myClient->GetKZValue(K_Z);
+	myClient->GetKXValue(K_X);
 	/**********************初始化enclave中数据结构******************/
 	//生成Kw kc
 	ecall_init(eid,KFvalue,(size_t)ENC_KEY_SIZE); 
+	unsigned char key_array[3][16];
+	memcpy(key_array[0],K_T,16);
+	memcpy(key_array[1],K_Z,16);
+	memcpy(key_array[2],K_X,16);
+	ecall_get_key(eid,key_array);
+	std::cout<<"SGX get K_T, K_Z and K_X."<<std::endl;
+
+	
+
 	/****************************test******************************/
-	//设置docContent
-	docContent *fetch_data;
-	fetch_data = (docContent *)malloc(sizeof(docContent));
-	std::string test1 = "id";
-	std::string test2 = "yangxuyangxuyangxuyangxu";
-	fetch_data->id.id_length = test1.length()+1;
-	fetch_data->content_length = test2.length()+1;
-	fetch_data->content = (char*) malloc(fetch_data->content_length);
-	fetch_data->id.doc_id = (char*)malloc(fetch_data->id.id_length);
-	memcpy(fetch_data->id.doc_id, test1.c_str(),fetch_data->id.id_length);
-	memcpy(fetch_data->content, test2.c_str(),fetch_data->content_length);
-	//设置密文实体
-	entry *encrypted_entry;
-	encrypted_entry = (entry*)malloc(sizeof(entry));
-	encrypted_entry->first.content_length = fetch_data->id.id_length; //add dociId
-	encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
-	encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//f
-	encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
-	//加密操作
-	myClient->EncryptDoc(fetch_data,encrypted_entry);
-	//发送到enclave中
-	ecall_test(eid,encrypted_entry->second.message,encrypted_entry->second.message_length);
+	//测试hash256结果是否相同
+	std::string xtag = "friend:123122";
+	const char* cxtag = xtag.c_str();
+	string outhash = HashFunc::sha256(cxtag);
+	print_bytes((uint8_t*)outhash.c_str(),outhash.length());
+	//为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
+	ecall_hash_test(eid,cxtag,xtag.length()+1);
+
+
+	// //设置docContent
+	// docContent *fetch_data;
+	// fetch_data = (docContent *)malloc(sizeof(docContent));
+	// std::string test1 = "id";
+	// std::string test2 = "yangxuyangxuyangxuyangxu";
+	// fetch_data->id.id_length = test1.length()+1;
+	// fetch_data->content_length = test2.length()+1;
+	// fetch_data->content = (char*) malloc(fetch_data->content_length);
+	// fetch_data->id.doc_id = (char*)malloc(fetch_data->id.id_length);
+	// memcpy(fetch_data->id.doc_id, test1.c_str(),fetch_data->id.id_length);
+	// memcpy(fetch_data->content, test2.c_str(),fetch_data->content_length);
+	// //设置密文实体
+	// entry *encrypted_entry;
+	// encrypted_entry = (entry*)malloc(sizeof(entry));
+	// encrypted_entry->first.content_length = fetch_data->id.id_length; //add dociId
+	// encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
+	// encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//f
+	// encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
+	// //加密操作
+	// myClient->EncryptDoc(fetch_data,encrypted_entry);
+	// //发送到enclave中
+	// ecall_test(eid,encrypted_entry->second.message,encrypted_entry->second.message_length);
 	
-	free(fetch_data->content);
-	free(fetch_data->id.doc_id);
-	free(fetch_data);
+	// free(fetch_data->content);
+	// free(fetch_data->id.doc_id);
+	// free(fetch_data);
 	
-	free(encrypted_entry->first.content);
-	free(encrypted_entry->second.message);
-	free(encrypted_entry);
+	// free(encrypted_entry->first.content);
+	// free(encrypted_entry->second.message);
+	// free(encrypted_entry);
 
 
 

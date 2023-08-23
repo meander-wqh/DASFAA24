@@ -62,7 +62,7 @@ int dec_aes_gcm(unsigned char *ciphertext, int ciphertext_len,
 void print_bytes(uint8_t *ptr, uint32_t len) {
   for (uint32_t i = 0; i < len; i++) {
     printf("%x", *(ptr + i));
-    printf(" - ");
+    printf(" ");
   }
 
   printf("\n");

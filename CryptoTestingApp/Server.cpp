@@ -2,10 +2,55 @@
 #include <algorithm> // for std::find
 #include <iterator> // for std::begin, std::end
 
+
+
 Server::Server(){
   R_Doc.clear();
   M_I.clear();
   M_c.clear();
+  std::string config_path = "./common/config.txt";
+	Config config = Read_Config(config_path);
+  cldcf = new CompactedLogarithmicDynamicCuckooFilter(config.item_num, config.exp_FPR,config.exp_block_num);
+}
+
+std::string Server::Get_Value(std::string config_buff){
+	std::string value;
+	int pos = config_buff.find("=", 0);
+	if (pos != -1)
+	{
+		pos++;
+		value = config_buff.substr(pos, config_buff.length());
+	} else {
+		exit(1);
+	}
+
+	while(1){
+		pos = value.find(" ", 0);
+		if(pos >= 0){
+			value = value.substr(pos+1, config_buff.length());
+		}
+		else{
+			break;
+		}
+	}
+
+	return value;
+}
+
+Config Server::Read_Config(const std::string path){
+	std::ifstream in_config(path.c_str());
+	std::string config_buff;
+	Config configuration;
+	getline(in_config, config_buff);
+	configuration.exp_FPR = atof(Get_Value(config_buff).c_str());
+	getline(in_config, config_buff);
+	configuration.item_num = atof(Get_Value(config_buff).c_str());
+	getline(in_config, config_buff);
+	configuration.dataset_path = Get_Value(config_buff);
+	getline(in_config, config_buff);
+	configuration.exp_block_num = atoi(Get_Value(config_buff).c_str());
+	
+	return configuration;
 }
 
 Server::~Server(){

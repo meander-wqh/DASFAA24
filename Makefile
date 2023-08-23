@@ -46,7 +46,7 @@ else
 endif
 
 App_Cpp_Files := $(wildcard CryptoTestingApp/*.cpp)
-App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include -I/usr/include -I/usr/include/openssl
+App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include -I/usr/include -I/usr/include/openssl -I./*
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -132,6 +132,19 @@ ifneq ($(Build_Mode), HW_RELEASE)
 	@echo "RUN  =>  $(App_Name) [$(SGX_MODE)|$(SGX_ARCH), OK]"
 endif
 
+####### Server LDCF Objects ########
+hashfunction.o: CryptoTestingApp/LDCF/hashfunction.cpp CryptoTestingApp/LDCF/hashfunction.h
+	$(CXX) -Wall -c CryptoTestingApp/LDCF/hashfunction.cpp -lssl -lcrypto
+
+cuckoofilter.o: CryptoTestingApp/LDCF/cuckoofilter.cpp CryptoTestingApp/LDCF/cuckoofilter.h
+	$(CXX) -Wall -c CryptoTestingApp/LDCF/cuckoofilter.cpp -lssl -lcrypto
+
+uint.o: CryptoTestingApp/LDCF/uint.cpp CryptoTestingApp/LDCF/uint.h
+	$(CXX) -Wall -c CryptoTestingApp/LDCF/uint.cpp -lssl -lcrypto
+
+compactedLDCF.o: CryptoTestingApp/LDCF/compactedLDCF.cpp CryptoTestingApp/LDCF/compactedLDCF.h CryptoTestingApp/LDCF/uint.h 
+	$(CXX) -Wall -c CryptoTestingApp/LDCF/compactedLDCF.cpp -lssl -lcrypto
+
 ######## CryptoTestingApp Objects ########
 CryptoTestingApp/CryptoEnclave_u.c: $(SGX_EDGER8R) CryptoEnclave/CryptoEnclave.edl
 	@cd CryptoTestingApp && $(SGX_EDGER8R) --untrusted ../CryptoEnclave/CryptoEnclave.edl --search-path ../CryptoEnclave --search-path $(SGX_SDK)/include
@@ -139,7 +152,7 @@ CryptoTestingApp/CryptoEnclave_u.c: $(SGX_EDGER8R) CryptoEnclave/CryptoEnclave.e
 CryptoTestingApp/CryptoEnclave_u.o: CryptoTestingApp/CryptoEnclave_u.c
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
-CryptoTestingApp/%.o: CryptoTestingApp/%.cpp
+CryptoTestingApp/%.o: CryptoTestingApp/%.cpp 
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 $(App_Name): CryptoTestingApp/CryptoEnclave_u.o $(App_Cpp_Objects)

@@ -67,4 +67,11 @@ typedef struct docContents{
 
 typedef std::pair<entryKey, entryValue> entry;//entry登记 ,作为密文
 
+typedef struct{
+	size_t item_num;
+	double exp_FPR;
+	std::string dataset_path;
+	size_t exp_block_num;
+}Config;
+
 #endif

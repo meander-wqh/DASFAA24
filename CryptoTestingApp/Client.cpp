@@ -14,13 +14,27 @@
 
 
 Client::Client(){
-    file_reading_counter=0;
+    //file_reading_counter=0;
     RAND_bytes(KF,ENC_KEY_SIZE); //随机产生一段random数组,文件密钥kF setup-1
+    RAND_bytes(K_T,ENC_KEY_SIZE); 
+    RAND_bytes(K_Z,ENC_KEY_SIZE); 
+    RAND_bytes(K_X,ENC_KEY_SIZE); 
+    std::cout<<"Client generate K_T, K_Z and K_X."<<std::endl;
 }
 
 void Client::getKFValue(unsigned char * outKey){
     memcpy(outKey,KF,ENC_KEY_SIZE);//复制KF 到 outKey
 }
+void Client::GetKTValue(unsigned char * outKey){
+    memcpy(outKey,KF,ENC_KEY_SIZE);//复制KF 到 outKey
+}
+void Client::GetKZValue(unsigned char * outKey){
+    memcpy(outKey,KF,ENC_KEY_SIZE);//复制KF 到 outKey
+}
+void Client::GetKXValue(unsigned char * outKey){
+    memcpy(outKey,KF,ENC_KEY_SIZE);//复制KF 到 outKey
+}
+
 
 void Client::ReadNextDoc(docContent *content){//文档读取传入函数
     std::ifstream inFile;//读取文件

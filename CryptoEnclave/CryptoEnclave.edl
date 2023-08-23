@@ -6,10 +6,12 @@ enclave {
     trusted {
 
         public void ecall_init([in,size=len] unsigned char *keyF, size_t len);
+        public void ecall_get_key([in] unsigned char key[3][16]);
         public void ecall_addDoc([in, size=id_length] char *doc_id, size_t id_length, [in, size=content_length] char *content, int content_length);
         public void ecall_delDoc([in, size=id_length] char *doc_id, size_t id_length);
         public void ecall_search([in, size=len] const char *keyword, size_t len);
         public void ecall_test([in, size = length_content] char* encrypted_content, size_t length_content);
+        public void ecall_hash_test([in,size = len] const char* data,size_t len);
     };
 
     untrusted {
