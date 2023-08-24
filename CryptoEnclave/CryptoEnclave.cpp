@@ -35,28 +35,59 @@ unsigned char K_X[ENC_KEY_SIZE] = {0};
 std::unordered_map<std::string, int> ST; //关键字与对应文件次数哈希表
 std::unordered_map<std::string, std::vector<std::string>> D; //关键字与被删文件ID哈希表
 std::unordered_map<std::string, int> UpdateCnt;
-// std::unordered_map<std::string, CuckooFilter*> CFs;
-// LinkTree cf_tree = new LinkTree();
+std::unordered_map<std::string, CuckooFilter*> CFs;
+LinkTree* cf_tree = nullptr;
 
+int fingerprint_size = 0;
+int single_table_length = 0;
 
 
 std::vector<std::string> d; //被删文件ID列表
 
 /*** setup */
-void ecall_init(unsigned char *keyF, size_t len){ 
-	d.reserve(750000); //初始化d
-    memcpy(KF,keyF,len); //拷贝文件密钥到KF
-    sgx_read_rand(KW, ENC_KEY_SIZE); //产生真随机数KW，用于生成密钥k_w
-    sgx_read_rand(KC, ENC_KEY_SIZE); //产生真随机数KC，用于生成密钥k_c
-}
+// void ecall_init(unsigned char *keyF, size_t len){ 
+// 	d.reserve(750000); //初始化d
+//     memcpy(KF,keyF,len); //拷贝文件密钥到KF
+//     sgx_read_rand(KW, ENC_KEY_SIZE); //产生真随机数KW，用于生成密钥k_w
+//     sgx_read_rand(KC, ENC_KEY_SIZE); //产生真随机数KC，用于生成密钥k_c
+// }
 
-void ecall_get_key(unsigned char key_array[3][16]){
+void ecall_init(unsigned char key_array[3][16]){
     memcpy(K_T,key_array[0],ENC_KEY_SIZE);
     memcpy(K_Z,key_array[1],ENC_KEY_SIZE);
     memcpy(K_X,key_array[2],ENC_KEY_SIZE);
     // print_bytes((uint8_t*)key_array[0],ENC_KEY_SIZE);
     // print_bytes((uint8_t*)key_array[1],ENC_KEY_SIZE);
     // print_bytes((uint8_t*)key_array[2],ENC_KEY_SIZE);
+    
+    int capacity = ITEM_NUMBER;
+	
+	single_table_length = upperpower2(capacity/4.0/EXP_BLOCK_NUM);
+
+	int single_capacity = single_table_length*0.9375*4;//s=6 1920 s=12 960 s=24 480 s=48 240 s=96 120
+
+	double false_positive = FALSE_POSITIVE;
+	double single_false_positive = 1-pow(1.0-false_positive, ((double)single_capacity/capacity));
+	double fingerprint_size_double = ceil(log(8.0/single_false_positive)/log(2));
+	if(fingerprint_size_double>0 && fingerprint_size_double<=4){
+		fingerprint_size = 4;
+	}else if(fingerprint_size_double>4 && fingerprint_size_double<=8){
+		fingerprint_size = 8;
+	}else if(fingerprint_size_double>8 && fingerprint_size_double<=12){
+		fingerprint_size = 12;
+	}else if(fingerprint_size_double>12 && fingerprint_size_double<=16){
+		fingerprint_size = 16;
+	}else if(fingerprint_size_double>16 && fingerprint_size_double<=24){
+		fingerprint_size = 16;
+	}else if(fingerprint_size_double>24 && fingerprint_size_double<=32){
+		fingerprint_size = 16;
+	}else{
+		//cout<<"fingerprint out of range!!!"<<endl;
+		fingerprint_size = 16;
+	}
+
+    //init cf_tree
+    cf_tree = new LinkTree();
 }
 
 void ecall_test(char* encrypted_content, size_t length_content){
@@ -85,11 +116,66 @@ void ecall_test(char* encrypted_content, size_t length_content){
 }
 
 void ecall_hash_test(const char* data, size_t len){
-    //传进来的data会多一位
     printf("%s", data);
     std::string res = SGXHashFunc::sha256(data);
     const char* cres = res.c_str();
     ocall_print_string(cres);
+}
+
+void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_len, size_t op){
+    std::string xtag;
+    std::string sw(w,w_len);
+    std::string sid(id,id_len);
+    xtag = sw + sid;
+    //cal fingerprint
+
+    uint32_t fingerprint = 0;
+    size_t index = 0;
+
+    generateIF(xtag.c_str(), index, fingerprint, fingerprint_size, single_table_length);
+    std::string CFId = cf_tree->getCFId(fingerprint,fingerprint_size);
+    if(op == 1){
+        //add
+        if(UpdateCnt.find(sw) == UpdateCnt.end()){
+            UpdateCnt[sw] = 0;
+        }
+        UpdateCnt[sw]++;
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        unsigned char* msg = (unsigned char*)(sw+sid).c_str();
+        int msg_len = (sw+sid).length();
+
+        hash_SHA128(K_T, msg, msg_len, stag);
+        unsigned char C_id[ENTRY_HASH_KEY_LEN_128];
+        unsigned char PatchValue[ENTRY_HASH_KEY_LEN_128];
+        PatchTo128(sid, PatchValue);
+
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_Z,sw.c_str(),sw.length(),tempF_2);
+
+        Hashxor(PatchValue, tempF_2, ENTRY_HASH_KEY_LEN_128, C_id);
+        unsigned char ind[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
+
+        PatchTo128((sw+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
+        unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
+        //TODO:Send to Server
+        ocall_add_update(
+            stag,ENTRY_HASH_KEY_LEN_128,
+            C_id,ENTRY_HASH_KEY_LEN_128,
+            ind,ENTRY_HASH_KEY_LEN_128,
+            C_stag,ENTRY_HASH_KEY_LEN_128,
+            fingerprint,index,
+            (unsigned char*)CFId.c_str(),CFId.length());
+    }else{
+        unsigned char stag_inverse[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_T, (sw+std::to_string(UpdateCnt[sw])).c_str() , (sw+std::to_string(UpdateCnt[sw])).length(), stag_inverse);
+        UpdateCnt[sw]--;
+        unsigned char C_id_inverse[ENTRY_HASH_KEY_LEN_128];
+        ocall_Query_TSet(stag_inverse,ENTRY_HASH_KEY_LEN_128, C_id_inverse,ENTRY_HASH_KEY_LEN_128);
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        //hash_SHA128()
+    }
 }
 
 /*** update with op=add */

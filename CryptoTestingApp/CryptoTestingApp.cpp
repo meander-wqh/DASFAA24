@@ -116,6 +116,12 @@ void ocall_retrieve_M_c(unsigned char * _u_prime, size_t _u_prime_size,
 
 }
 
+void ocall_Query_TSet(unsigned char* stag,size_t stag_len,unsigned char* value,size_t value_len){
+	std::string sstag(stag,stag_len);
+	std::string svalue = myServer->QueryTSet(sstag);
+	memcpy(value,(unsigned char*)svalue.c_str(),svalue.length());
+}
+
 void ocall_del_M_c_value(const unsigned char *_u_prime, size_t _u_prime_size){
 
 	std::string del_u_prime((char*)_u_prime,_u_prime_size);
@@ -133,6 +139,13 @@ void ocall_query_tokens_entries(const void *Q_w_u_arr,
 	
 	//give to Client for decryption
 	myClient->DecryptDocCollection(Res);
+}
+
+void ocall_add_update(unsigned char* stag,size_t stag_len,unsigned char* C_id,size_t C_id_len, unsigned char* ind,size_t ind_len,
+unsigned char* C_stag,size_t C_stag_len,uint32_t fingerprint, size_t index,unsigned char* CFId,size_t CFId_len){
+	myServer->UpdateTSet(stag,stag_len,C_id,C_id_len);
+	myServer->UpdateiTSet(ind,ind_len,C_stag,C_stag_len,1);
+	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,1);
 }
 
 
@@ -171,12 +184,12 @@ int main()
 	myClient->GetKXValue(K_X);
 	/**********************初始化enclave中数据结构******************/
 	//生成Kw kc
-	ecall_init(eid,KFvalue,(size_t)ENC_KEY_SIZE); 
+	//ecall_init(eid,KFvalue,(size_t)ENC_KEY_SIZE); 
 	unsigned char key_array[3][16];
 	memcpy(key_array[0],K_T,16);
 	memcpy(key_array[1],K_Z,16);
 	memcpy(key_array[2],K_X,16);
-	ecall_get_key(eid,key_array);
+	ecall_init(eid,key_array);
 	std::cout<<"SGX get K_T, K_Z and K_X."<<std::endl;
 
 	

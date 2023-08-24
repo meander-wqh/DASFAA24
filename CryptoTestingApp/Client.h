@@ -27,6 +27,8 @@ class Client{
         void GetKZValue(unsigned char* outKey);
         void GetKXValue(unsigned char* outKey);
 
+        std::unordered_map<std::string,std::vector<std::string>> ReadDataSet(const std::string& filename);
+
     private:
         unsigned char KF[ENC_KEY_SIZE];//KF密钥
         unsigned char K_T[ENC_KEY_SIZE];//KF密钥

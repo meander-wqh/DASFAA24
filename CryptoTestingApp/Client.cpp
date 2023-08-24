@@ -22,6 +22,36 @@ Client::Client(){
     std::cout<<"Client generate K_T, K_Z and K_X."<<std::endl;
 }
 
+std::unordered_map<std::string,std::vector<std::string>> Client::ReadDataSet(const std::string& filename){
+    std::unordered_map<std::string,std::vector<std::string>> DataSet;
+    std::ifstream file(filename);
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            int index = 0;
+            std::string temp;
+            std::string w;
+            std::string id;
+            while(iss >> temp){
+                if(index==0){
+                    w = temp;
+                }else{
+                    id = temp;
+                }
+            }
+            std::vector<std::string> PostingList;
+            PostingList.push_back(id);
+            PostingList.push_back("add");
+            DataSet[w] = PostingList;
+        }
+        file.close();
+    } else {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+    }
+    return DataSet;
+}
+
 void Client::getKFValue(unsigned char * outKey){
     memcpy(outKey,KF,ENC_KEY_SIZE);//复制KF 到 outKey
 }

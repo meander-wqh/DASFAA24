@@ -29,6 +29,13 @@ class Server{
 
         std::string Get_Value(std::string config_buff);
         Config Read_Config(const std::string path);
+
+
+        void UpdateTSet(unsigned char* stag, size_t stag_len, unsigned char* value, size_t value_len);
+        void UpdateiTSet(unsigned char* ind, size_t ind_len, unsigned char* value, size_t value_len, size_t type);
+        void UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type);
+        std::string QueryTSet(std::string key);
+        std::string QueryiTSet(std::string key);
         
     private:
         std::unordered_map<std::string,std::string> M_I;

@@ -10,6 +10,10 @@
 #include <vector>
 #include <cstring>
 #include "../common/data_type.h"
+#include "CryptoEnclave_t.h"
+#include "sgx_trts.h"
+#include "sgx_tcrypto.h"
+#include "SGXhashfunction.h"
 
 
 void printf( const char *fmt, ...);
@@ -22,7 +26,12 @@ void enc_aes_gcm(const void *key, const void *plaintext, size_t plaintext_len, v
 void dec_aes_gcm(const void *key, const void *ciphertext, size_t ciphertext_len, void *plaintext, size_t plaintext_len);
 int hash_SHA128(const void *key, const void *msg, int msg_len, void *value);
 int hash_SHA128_key(const void *key, int key_len, const void *msg, int msg_len, void *value);
+void Hashxor(unsigned char* hash1,unsigned char* hash2,int len,unsigned char* res);
+void PatchTo128(std::string input, unsigned char* output);
+uint64_t upperpower2(uint64_t x);
 
+
+void generateIF(const char* item, size_t &index, uint32_t &fingerprint, int fingerprint_size, int single_table_length);
 
 //improved
 //void prf_F_improve(const void *key,const void *plaintext,size_t plaintext_len, entryKey *k );

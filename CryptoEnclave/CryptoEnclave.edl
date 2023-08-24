@@ -5,13 +5,14 @@ enclave {
     
     trusted {
 
-        public void ecall_init([in,size=len] unsigned char *keyF, size_t len);
-        public void ecall_get_key([in] unsigned char key[3][16]);
+        //public void ecall_init([in,size=len] unsigned char *keyF, size_t len);
+        public void ecall_init([in] unsigned char key[3][16]);
         public void ecall_addDoc([in, size=id_length] char *doc_id, size_t id_length, [in, size=content_length] char *content, int content_length);
         public void ecall_delDoc([in, size=id_length] char *doc_id, size_t id_length);
         public void ecall_search([in, size=len] const char *keyword, size_t len);
         public void ecall_test([in, size = length_content] char* encrypted_content, size_t length_content);
         public void ecall_hash_test([in,size = len] const char* data,size_t len);
+        public void ecall_update_data([in,size=w_len]const char* w, size_t w_len, [in,size=id_len]const char* id, size_t id_len, size_t op);
     };
 
     untrusted {
@@ -38,7 +39,16 @@ enclave {
         void ocall_query_tokens_entries([in, count= pair_count, size=rand_size] const void *Q_w_u_arr,
                                [in, count= pair_count, size=rand_size] const void *Q_w_id_arr,
                                int pair_count, int rand_size);
+        void ocall_add_update(
+            [in,size=stag_len]unsigned char* stag,size_t stag_len,
+            [in,size=C_id_len]unsigned char* C_id,size_t C_id_len, 
+            [in,size=ind_len]unsigned char* ind,size_t ind_len,
+            [in,size=C_stag_len]unsigned char* C_stag,size_t C_stag_len,
+            uint32_t fingerprint,
+            size_t index,
+            [in,size=CFId_len]unsigned char* CFId,size_t CFId_len
+        );
 
-
+        void ocall_Query_TSet([in,size=stag_len]unsigned char* stag,size_t stag_len,[out,size=value_len]unsigned char* value,size_t value_len);
     };
 };

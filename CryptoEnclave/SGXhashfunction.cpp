@@ -1,7 +1,6 @@
 #include "SGXhashfunction.h"
 
 std::string SGXHashFunc::sha256(const char* data) {
-    //传进来的data多个7f
     size_t data_len = strlen(data);
     sgx_sha256_hash_t sha256_hash;
     sgx_status_t ret = sgx_sha256_msg((uint8_t*)data, data_len, &sha256_hash);

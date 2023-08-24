@@ -15,13 +15,13 @@
 extern "C" {
 #endif
 
-void ecall_init(unsigned char* keyF, size_t len);
-void ecall_get_key(unsigned char key[3][16]);
+void ecall_init(unsigned char key[3][16]);
 void ecall_addDoc(char* doc_id, size_t id_length, char* content, int content_length);
 void ecall_delDoc(char* doc_id, size_t id_length);
 void ecall_search(const char* keyword, size_t len);
 void ecall_test(char* encrypted_content, size_t length_content);
 void ecall_hash_test(const char* data, size_t len);
+void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_len, size_t op);
 
 sgx_status_t SGX_CDECL ocall_test2(char* encrypted_content, size_t length_content);
 sgx_status_t SGX_CDECL ocall_test(int* mint, char* mchar, char* mstring, int len);
@@ -32,6 +32,7 @@ sgx_status_t SGX_CDECL ocall_del_encrypted_doc(const char* del_id, size_t del_id
 sgx_status_t SGX_CDECL ocall_retrieve_M_c(unsigned char* _u_prime, size_t _u_prime_size, unsigned char* _v_prime, size_t maxLen, int* _v_prime_size, size_t int_len);
 sgx_status_t SGX_CDECL ocall_del_M_c_value(const unsigned char* _u_prime, size_t _u_prime_size);
 sgx_status_t SGX_CDECL ocall_query_tokens_entries(const void* Q_w_u_arr, const void* Q_w_id_arr, int pair_count, int rand_size);
+sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len);
 sgx_status_t SGX_CDECL sgx_oc_cpuidex(int cpuinfo[4], int leaf, int subleaf);
 sgx_status_t SGX_CDECL sgx_thread_wait_untrusted_event_ocall(int* retval, const void* self);
 sgx_status_t SGX_CDECL sgx_thread_set_untrusted_event_ocall(int* retval, const void* waiter);

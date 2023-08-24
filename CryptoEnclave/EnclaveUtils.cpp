@@ -1,9 +1,4 @@
 #include "EnclaveUtils.h"
-#include "CryptoEnclave_t.h"
-
-#include "sgx_trts.h"
-#include "sgx_tcrypto.h"
-#include "../common/data_type.h"
 
 void printf( const char *fmt, ...)
 {
@@ -19,18 +14,23 @@ void print_bytes(uint8_t *ptr, uint32_t len) {
   for (uint32_t i = 0; i < len; i++) {
     printf("%x", *(ptr + i));
   }
-
-//   printf("\n");
 }
 
+void generateIF(const char* item, size_t &index, uint32_t &fingerprint, int fingerprint_size, int single_table_length){
+	std::string  value = SGXHashFunc::sha256(item);
+	uint64_t hv = *((uint64_t*) value.c_str());
+	index = ((uint32_t) (hv >> 32)) % single_table_length;
+	fingerprint = (uint32_t) (hv & 0xFFFFFFFF);
+	fingerprint &= ((0x1ULL<<fingerprint_size)-1);
+	fingerprint += (fingerprint == 0);
+}
 
-int  cmp(const uint8_t *value1, const uint8_t *value2, uint32_t len){
+int cmp(const uint8_t *value1, const uint8_t *value2, uint32_t len){
     for (uint32_t i = 0; i < len; i++) {
         if (*(value1+i) != *(value2+i)) {
         return -1;
         }
     }
-
     return 0;
 }
 
@@ -141,6 +141,23 @@ int hash_SHA128(const void *key, const void *msg, int msg_len, void *value){
     }  
 }
 
+void Hashxor(unsigned char* hash1,unsigned char* hash2,int len,unsigned char* res){
+    for(int i=0;i<len;i++){
+        res[i] = hash1[i] ^ hash2[i];
+    }
+}
+
+
+void PatchTo128(std::string input, unsigned char* output){
+    //128 bit = 16 B
+    int len = input.length();
+    for(int i=0;i<16-len;i++){
+        input += "#";
+    }
+    memcpy(output,(unsigned char*)input.c_str(),16);
+}
+
+
 //make sure the key is 16 bytes and appended to the digest
 //这是在hash结束后的value后面加上16位的key
 int hash_SHA128_key(const void *key, int key_len, const void *msg, int msg_len, void *value){
@@ -155,4 +172,16 @@ int hash_SHA128_key(const void *key, int key_len, const void *msg, int msg_len, 
         printf("[*] hash error line 163: %d\n", result);
         return 0;
     }
+}
+
+uint64_t upperpower2(uint64_t x) {
+  x--;
+  x |= x >> 1;
+  x |= x >> 2;
+  x |= x >> 4;
+  x |= x >> 8;
+  x |= x >> 16;
+  x |= x >> 32;
+  x++;
+  return x;
 }

@@ -52,6 +52,10 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_del_M_c_value, (const unsigned char* _u
 #define OCALL_QUERY_TOKENS_ENTRIES_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_query_tokens_entries, (const void* Q_w_u_arr, const void* Q_w_id_arr, int pair_count, int rand_size));
 #endif
+#ifndef OCALL_ADD_UPDATE_DEFINED__
+#define OCALL_ADD_UPDATE_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_add_update, (unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len));
+#endif
 #ifndef SGX_OC_CPUIDEX_DEFINED__
 #define SGX_OC_CPUIDEX_DEFINED__
 void SGX_UBRIDGE(SGX_CDECL, sgx_oc_cpuidex, (int cpuinfo[4], int leaf, int subleaf));
@@ -73,13 +77,13 @@ int SGX_UBRIDGE(SGX_CDECL, sgx_thread_setwait_untrusted_events_ocall, (const voi
 int SGX_UBRIDGE(SGX_CDECL, sgx_thread_set_multiple_untrusted_events_ocall, (const void** waiters, size_t total));
 #endif
 
-sgx_status_t ecall_init(sgx_enclave_id_t eid, unsigned char* keyF, size_t len);
-sgx_status_t ecall_get_key(sgx_enclave_id_t eid, unsigned char key[3][16]);
+sgx_status_t ecall_init(sgx_enclave_id_t eid, unsigned char key[3][16]);
 sgx_status_t ecall_addDoc(sgx_enclave_id_t eid, char* doc_id, size_t id_length, char* content, int content_length);
 sgx_status_t ecall_delDoc(sgx_enclave_id_t eid, char* doc_id, size_t id_length);
 sgx_status_t ecall_search(sgx_enclave_id_t eid, const char* keyword, size_t len);
 sgx_status_t ecall_test(sgx_enclave_id_t eid, char* encrypted_content, size_t length_content);
 sgx_status_t ecall_hash_test(sgx_enclave_id_t eid, const char* data, size_t len);
+sgx_status_t ecall_update_data(sgx_enclave_id_t eid, const char* w, size_t w_len, const char* id, size_t id_len, size_t op);
 
 #ifdef __cplusplus
 }

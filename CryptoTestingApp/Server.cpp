@@ -175,3 +175,41 @@ void Server::Display_M_c(){
       print_bytes((uint8_t*)(it->second).c_str(),(uint32_t)it->second.length());
   }
 }
+
+
+void Server::UpdateTSet(unsigned char* stag, size_t stag_len, unsigned char* value, size_t value_len){
+  std::string sstag((char*)stag,stag_len);
+  std::string svalue((char*)value,value_len);
+  TSet[sstag] = svalue;
+}
+
+
+
+void Server::UpdateiTSet(unsigned char* ind, size_t ind_len, unsigned char* value, size_t value_len, size_t type){
+  std::string sind((char*)ind,ind_len);
+  std::string svalue((char*)value,value_len);
+  if(type == 1){
+    //add
+    iTSet[sind] = svalue;
+  }else{
+    //del
+    iTSet.erase(sind);
+  }
+}
+
+void Server::UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type){
+  std::string sCFId((char*)CFId, CFId_len);
+  if(type == 1){
+    cldcf->insertItem(sCFId,fingerprint,index);
+  }
+  else{
+    cldcf->deleteItem(sCFId,fingerprint,index);
+  }
+}
+
+std::string Server::QueryTSet(std::string key){
+  return TSet[key];
+}
+std::string Server::QueryiTSet(std::string key){
+  return iTSet[key];
+}
