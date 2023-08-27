@@ -122,6 +122,60 @@ void ecall_hash_test(const char* data, size_t len){
     ocall_print_string(cres);
 }
 
+//TODO:
+void ecall_Conjunctive_Exact_Social_Search(char* str){
+    std::string input(str);
+    std::vector<std::string> tokens;
+    int LeastWIndex = 0;//UpdateCnt次数最少的w的下标
+    int leastUpdateCnt = -1;
+    int index = 0;
+    //分割
+    size_t pos = 0;
+    while((pos = input.find('&', pos)) != std::string::npos){
+        tokens.push_back(input.substr(0, pos));
+        if(index == 0){
+            leastUpdateCnt = UpdateCnt[input.substr(0, pos)];
+            LeastWIndex = index;
+        }else{
+            leastUpdateCnt = UpdateCnt[input.substr(0, pos)]<leastUpdateCnt? UpdateCnt[input.substr(0, pos)]:leastUpdateCnt;
+            if(UpdateCnt[input.substr(0, pos)]<leastUpdateCnt){
+                LeastWIndex = index;
+            }
+        }
+        index++;
+        pos++;
+        input = input.substr(pos);
+        pos = 0;
+
+    }
+    tokens.push_back(input);
+
+    std::vector<unsigned char*> stokenList;
+    //查询
+    for(int j=0;j<UpdateCnt[tokens[LeastWIndex]];++j){
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        unsigned char* msg = (unsigned char*)(tokens[LeastWIndex] + std::to_string(j)).c_str();
+        int msg_len = (tokens[LeastWIndex] + std::to_string(j)).c_str();
+        hash_SHA128(K_T, msg, msg_len, stag);
+        stokenList.push_back(stag);
+    }
+    int length = ENTRY_HASH_KEY_LEN_128*stokenList.size();
+    unsigned char StrStokenList[length];
+    unsigned char* p = StrStokenList;
+    for(int i=0;i<stokenList.size();++i){
+        memcpy(p,stokenList[i],ENTRY_HASH_KEY_LEN_128);
+        p += ENTRY_HASH_KEY_LEN_128;
+    }
+
+    unsigned char* ValList = nullptr;
+    int ValListSize;
+    ocall_send_stokenList(StrStokenList,stokenList.size(),ValList,ValListSize);
+    //TODO
+
+
+
+}
+
 void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_len, size_t op){
     std::string xtag;
     std::string sw(w,w_len);
@@ -141,8 +195,8 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         }
         UpdateCnt[sw]++;
         unsigned char stag[ENTRY_HASH_KEY_LEN_128];
-        unsigned char* msg = (unsigned char*)(sw+sid).c_str();
-        int msg_len = (sw+sid).length();
+        unsigned char* msg = (unsigned char*)(sw+std::to_string(UpdateCnt[sw])).c_str();
+        int msg_len = (sw+std::to_string(UpdateCnt[sw])).length();
 
         hash_SHA128(K_T, msg, msg_len, stag);
         unsigned char C_id[ENTRY_HASH_KEY_LEN_128];
@@ -156,17 +210,18 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         unsigned char ind[ENTRY_HASH_KEY_LEN_128];
         hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
 
-        PatchTo128((sw+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
+        PatchTo128((sw+"|"+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
         unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
         Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
-        //TODO:Send to Server
+        //Send to Server
         ocall_add_update(
             stag,ENTRY_HASH_KEY_LEN_128,
             C_id,ENTRY_HASH_KEY_LEN_128,
             ind,ENTRY_HASH_KEY_LEN_128,
             C_stag,ENTRY_HASH_KEY_LEN_128,
             fingerprint,index,
-            (unsigned char*)CFId.c_str(),CFId.length());
+            (unsigned char*)CFId.c_str(),CFId.length()
+        );
     }else{
         unsigned char stag_inverse[ENTRY_HASH_KEY_LEN_128];
         hash_SHA128(K_T, (sw+std::to_string(UpdateCnt[sw])).c_str() , (sw+std::to_string(UpdateCnt[sw])).length(), stag_inverse);
@@ -174,7 +229,29 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         unsigned char C_id_inverse[ENTRY_HASH_KEY_LEN_128];
         ocall_Query_TSet(stag_inverse,ENTRY_HASH_KEY_LEN_128, C_id_inverse,ENTRY_HASH_KEY_LEN_128);
         unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
-        //hash_SHA128()
+        hash_SHA128(K_Z,sw.c_str(),sw.length(),tempF_2);
+        unsigned char PatchValue[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(C_id_inverse,tempF_2,ENTRY_HASH_KEY_LEN_128,PatchValue);
+        std::string sid_inverse = DePatch(PatchValue);
+        unsigned char ind_inverse[ENTRY_HASH_KEY_LEN_128];
+        unsigned char ind[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_X,(sw+sid_inverse).c_str(),(sw+sid_inverse).length(),ind_inverse);
+        hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
+        unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
+        ocall_Query_iTSet(ind, ENTRY_HASH_KEY_LEN_128,C_stag,ENTRY_HASH_KEY_LEN_128);
+        Hashxor(C_stag,tempF_2,ENTRY_HASH_KEY_LEN_128,PatchValue);
+        std::string sDePatchValue = DePatch(PatchValue);
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_T,sDePatchValue.c_str(),sDePatchValue.length(),stag);
+        //Send to Server
+        ocall_del_update(
+            stag,ENTRY_HASH_KEY_LEN_128,
+            stag_inverse,ENTRY_HASH_KEY_LEN_128,
+            ind,ENTRY_HASH_KEY_LEN_128,
+            ind_inverse,ENTRY_HASH_KEY_LEN_128,
+            fingerprint,index,
+            (unsigned char*)CFId.c_str(),CFId.length()
+        );
     }
 }
 

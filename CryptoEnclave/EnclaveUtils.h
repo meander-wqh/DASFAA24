@@ -28,7 +28,9 @@ int hash_SHA128(const void *key, const void *msg, int msg_len, void *value);
 int hash_SHA128_key(const void *key, int key_len, const void *msg, int msg_len, void *value);
 void Hashxor(unsigned char* hash1,unsigned char* hash2,int len,unsigned char* res);
 void PatchTo128(std::string input, unsigned char* output);
+std::string DePatch(unsigned char* input);
 uint64_t upperpower2(uint64_t x);
+
 
 
 void generateIF(const char* item, size_t &index, uint32_t &fingerprint, int fingerprint_size, int single_table_length);

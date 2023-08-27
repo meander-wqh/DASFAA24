@@ -115,6 +115,35 @@ typedef struct ms_ocall_add_update_t {
 	size_t ms_CFId_len;
 } ms_ocall_add_update_t;
 
+typedef struct ms_ocall_del_update_t {
+	unsigned char* ms_stag;
+	size_t ms_stag_len;
+	unsigned char* ms_stag_inverse;
+	size_t ms_stag_inverse_len;
+	unsigned char* ms_ind;
+	size_t ms_ind_len;
+	unsigned char* ms_ind_inverse;
+	size_t ms_ind_inverse_len;
+	uint32_t ms_fingerprint;
+	size_t ms_index;
+	unsigned char* ms_CFId;
+	size_t ms_CFId_len;
+} ms_ocall_del_update_t;
+
+typedef struct ms_ocall_Query_TSet_t {
+	unsigned char* ms_stag;
+	size_t ms_stag_len;
+	unsigned char* ms_value;
+	size_t ms_value_len;
+} ms_ocall_Query_TSet_t;
+
+typedef struct ms_ocall_Query_iTSet_t {
+	unsigned char* ms_ind;
+	size_t ms_ind_len;
+	unsigned char* ms_value;
+	size_t ms_value_len;
+} ms_ocall_Query_iTSet_t;
+
 typedef struct ms_sgx_oc_cpuidex_t {
 	int* ms_cpuinfo;
 	int ms_leaf;
@@ -223,6 +252,30 @@ static sgx_status_t SGX_CDECL CryptoEnclave_ocall_add_update(void* pms)
 	return SGX_SUCCESS;
 }
 
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_del_update(void* pms)
+{
+	ms_ocall_del_update_t* ms = SGX_CAST(ms_ocall_del_update_t*, pms);
+	ocall_del_update(ms->ms_stag, ms->ms_stag_len, ms->ms_stag_inverse, ms->ms_stag_inverse_len, ms->ms_ind, ms->ms_ind_len, ms->ms_ind_inverse, ms->ms_ind_inverse_len, ms->ms_fingerprint, ms->ms_index, ms->ms_CFId, ms->ms_CFId_len);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_Query_TSet(void* pms)
+{
+	ms_ocall_Query_TSet_t* ms = SGX_CAST(ms_ocall_Query_TSet_t*, pms);
+	ocall_Query_TSet(ms->ms_stag, ms->ms_stag_len, ms->ms_value, ms->ms_value_len);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_Query_iTSet(void* pms)
+{
+	ms_ocall_Query_iTSet_t* ms = SGX_CAST(ms_ocall_Query_iTSet_t*, pms);
+	ocall_Query_iTSet(ms->ms_ind, ms->ms_ind_len, ms->ms_value, ms->ms_value_len);
+
+	return SGX_SUCCESS;
+}
+
 static sgx_status_t SGX_CDECL CryptoEnclave_sgx_oc_cpuidex(void* pms)
 {
 	ms_sgx_oc_cpuidex_t* ms = SGX_CAST(ms_sgx_oc_cpuidex_t*, pms);
@@ -265,9 +318,9 @@ static sgx_status_t SGX_CDECL CryptoEnclave_sgx_thread_set_multiple_untrusted_ev
 
 static const struct {
 	size_t nr_ocall;
-	void * table[15];
+	void * table[18];
 } ocall_table_CryptoEnclave = {
-	15,
+	18,
 	{
 		(void*)CryptoEnclave_ocall_test2,
 		(void*)CryptoEnclave_ocall_test,
@@ -279,6 +332,9 @@ static const struct {
 		(void*)CryptoEnclave_ocall_del_M_c_value,
 		(void*)CryptoEnclave_ocall_query_tokens_entries,
 		(void*)CryptoEnclave_ocall_add_update,
+		(void*)CryptoEnclave_ocall_del_update,
+		(void*)CryptoEnclave_ocall_Query_TSet,
+		(void*)CryptoEnclave_ocall_Query_iTSet,
 		(void*)CryptoEnclave_sgx_oc_cpuidex,
 		(void*)CryptoEnclave_sgx_thread_wait_untrusted_event_ocall,
 		(void*)CryptoEnclave_sgx_thread_set_untrusted_event_ocall,

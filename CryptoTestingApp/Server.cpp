@@ -208,8 +208,16 @@ void Server::UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerpri
 }
 
 std::string Server::QueryTSet(std::string key){
-  return TSet[key];
+  if(TSet.find(key) != TSet.end()){
+    return TSet[key];
+  }else{
+    return "";
+  }
 }
 std::string Server::QueryiTSet(std::string key){
-  return iTSet[key];
+  if(iTSet.find(key) != iTSet.end()){
+    return iTSet[key];
+  }else{
+    return "";
+  }
 }

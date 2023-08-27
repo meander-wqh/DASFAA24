@@ -157,6 +157,16 @@ void PatchTo128(std::string input, unsigned char* output){
     memcpy(output,(unsigned char*)input.c_str(),16);
 }
 
+std::string DePatch(unsigned char* input){
+    std::string output;
+    for(int i=0;i<16;i++){
+        if(input[i] == '#'){
+            break;
+        }
+        output += input[i];
+    }
+    return output;
+}
 
 //make sure the key is 16 bytes and appended to the digest
 //这是在hash结束后的value后面加上16位的key

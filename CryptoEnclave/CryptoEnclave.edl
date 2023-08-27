@@ -13,9 +13,11 @@ enclave {
         public void ecall_test([in, size = length_content] char* encrypted_content, size_t length_content);
         public void ecall_hash_test([in,size = len] const char* data,size_t len);
         public void ecall_update_data([in,size=w_len]const char* w, size_t w_len, [in,size=id_len]const char* id, size_t id_len, size_t op);
+        public void ecall_Conjunctive_Exact_Social_Search([in,string] char* str);
     };
 
     untrusted {
+        void ocall_send_stokenList([in,string]unsigned char* StokenList,[in]int StokenListSize,[out,string]unsigned char* ValList,[out]int ValListSize);
         void ocall_test2([in, size = length_content] char* encrypted_content, size_t length_content);
         void ocall_test([in, count = 1] int* mint,[in,size = 1] char* mchar,[in,size=len] char* mstring,int len);
         void ocall_print_string([in, string] const char *str);
@@ -48,7 +50,16 @@ enclave {
             size_t index,
             [in,size=CFId_len]unsigned char* CFId,size_t CFId_len
         );
+        void ocall_del_update(
+            [in,size=stag_len]unsigned char* stag,size_t stag_len,
+            [in,size=stag_inverse_len]unsigned char* stag_inverse,size_t stag_inverse_len, 
+            [in,size=ind_len]unsigned char* ind,size_t ind_len,
+            [in,size=ind_inverse_len]unsigned char* ind_inverse,size_t ind_inverse_len,
+            uint32_t fingerprint,
+            size_t index,
+            [in,size=CFId_len]unsigned char* CFId,size_t CFId_len);
 
         void ocall_Query_TSet([in,size=stag_len]unsigned char* stag,size_t stag_len,[out,size=value_len]unsigned char* value,size_t value_len);
+        void ocall_Query_iTSet([in,size=ind_len]unsigned char* ind,size_t ind_len,[out,size=value_len]unsigned char* value,size_t value_len);
     };
 };

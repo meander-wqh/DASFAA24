@@ -56,6 +56,18 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_query_tokens_entries, (const void* Q_w_
 #define OCALL_ADD_UPDATE_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_add_update, (unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len));
 #endif
+#ifndef OCALL_DEL_UPDATE_DEFINED__
+#define OCALL_DEL_UPDATE_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_del_update, (unsigned char* stag, size_t stag_len, unsigned char* stag_inverse, size_t stag_inverse_len, unsigned char* ind, size_t ind_len, unsigned char* ind_inverse, size_t ind_inverse_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len));
+#endif
+#ifndef OCALL_QUERY_TSET_DEFINED__
+#define OCALL_QUERY_TSET_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Query_TSet, (unsigned char* stag, size_t stag_len, unsigned char* value, size_t value_len));
+#endif
+#ifndef OCALL_QUERY_ITSET_DEFINED__
+#define OCALL_QUERY_ITSET_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Query_iTSet, (unsigned char* ind, size_t ind_len, unsigned char* value, size_t value_len));
+#endif
 #ifndef SGX_OC_CPUIDEX_DEFINED__
 #define SGX_OC_CPUIDEX_DEFINED__
 void SGX_UBRIDGE(SGX_CDECL, sgx_oc_cpuidex, (int cpuinfo[4], int leaf, int subleaf));

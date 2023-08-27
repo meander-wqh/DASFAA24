@@ -117,8 +117,14 @@ void ocall_retrieve_M_c(unsigned char * _u_prime, size_t _u_prime_size,
 }
 
 void ocall_Query_TSet(unsigned char* stag,size_t stag_len,unsigned char* value,size_t value_len){
-	std::string sstag(stag,stag_len);
+	std::string sstag((const char*)stag,stag_len);
 	std::string svalue = myServer->QueryTSet(sstag);
+	memcpy(value,(unsigned char*)svalue.c_str(),svalue.length());
+}
+
+void ocall_Query_iTSet(unsigned char* ind,size_t ind_len,unsigned char* value,size_t value_len){
+	std::string sind((const char*)ind,ind_len);
+	std::string svalue = myServer->QueryiTSet(sind);
 	memcpy(value,(unsigned char*)svalue.c_str(),svalue.length());
 }
 
@@ -146,6 +152,35 @@ unsigned char* C_stag,size_t C_stag_len,uint32_t fingerprint, size_t index,unsig
 	myServer->UpdateTSet(stag,stag_len,C_id,C_id_len);
 	myServer->UpdateiTSet(ind,ind_len,C_stag,C_stag_len,1);
 	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,1);
+}
+
+void ocall_del_update(unsigned char* stag,size_t stag_len,unsigned char* stag_inverse,size_t stag_inverse_len, unsigned char* ind,size_t ind_len,
+unsigned char* ind_inverse,size_t ind_inverse_len,uint32_t fingerprint, size_t index,unsigned char* CFId,size_t CFId_len){
+	std::string sstag_inverse((const char*)stag_inverse,stag_inverse_len);
+	myServer->UpdateTSet(stag,stag_len,(unsigned char*)myServer->QueryTSet(sstag_inverse).c_str(),myServer->QueryTSet(sstag_inverse).length());
+	std::string sind((const char*)ind,ind_len);
+	myServer->UpdateiTSet(ind,ind_len,(unsigned char*)myServer->QueryTSet(sind).c_str(),myServer->QueryTSet(sind).length(),0);
+	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,0);
+}
+
+void ocall_send_stokenList(unsigned char* StokenList,int StokenListSize,unsigned char* ValList,int ValListSize){
+	std::vector<unsigned char*> CidList;
+	unsigned char* p = StokenList;
+	std::string C_id = "";
+	int size = 0;
+	for(int i=0;i<StokenListSize;i++){
+		unsigned char SubStoken[ENTRY_HASH_KEY_LEN_128];
+		memcpy(SubStoken,p,ENTRY_HASH_KEY_LEN_128);
+		CidList.push_back(SubStoken);
+		p+=ENTRY_HASH_KEY_LEN_128;
+		std::string temp = myServer->QueryTSet(std::string(SubStoken,ENTRY_HASH_KEY_LEN_128));
+		if(temp != ""){
+			size++;
+			C_id += temp;
+		}
+	}
+	ValList = (unsigned char*)C_id.c_str();
+	ValListSize = size;
 }
 
 
@@ -195,13 +230,31 @@ int main()
 	
 
 	/****************************test******************************/
-	//测试hash256结果是否相同
-	std::string xtag = "friend:123122";
-	const char* cxtag = xtag.c_str();
-	string outhash = HashFunc::sha256(cxtag);
-	print_bytes((uint8_t*)outhash.c_str(),outhash.length());
-	//为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
-	ecall_hash_test(eid,cxtag,xtag.length()+1);
+	//测试Update
+	std::string sw = "friend:1";
+	std::string sid = "1001";
+
+	const char* w = sw.c_str();
+	size_t w_len = sw.length();
+	const char* id = sid.c_str();
+	size_t id_len = sid.length(); 
+	ecall_update_data(eid,w, w_len, id, id_len, 1);
+
+	//测试Search
+
+
+
+
+
+	// //测试hash256结果是否相同
+	// std::string xtag = "friend:123122";
+	// const char* cxtag = xtag.c_str();
+	// string outhash = HashFunc::sha256(cxtag);
+	// print_bytes((uint8_t*)outhash.c_str(),outhash.length());
+	// //为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
+	// ecall_hash_test(eid,cxtag,xtag.length()+1);
+	//
+
 
 
 	// //设置docContent
