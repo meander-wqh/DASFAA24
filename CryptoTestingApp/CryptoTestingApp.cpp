@@ -10,6 +10,8 @@
 #include "Server.h"
 #include "Client.h"
 #include "Utils.h"
+#include <fstream>
+#include <sstream>
 
 //for measurement
 #include <cstdint>
@@ -28,6 +30,9 @@ uint64_t timeSinceEpochMillisec() {//截取以纪元时间为单位获取当前�
 int total_file_no = (int)100000;//50000;//100000
 int total_pair_no = (int)600000;//50000;//100000
 int del_no = (int)0;//10000;//10000;
+
+int capacity = ITEM_NUMBER;
+int single_table_length = upperpower2(capacity/4.0/EXP_BLOCK_NUM);
 
 /* 	Note 1: Enclave only recognises direct pointer with count*size, where count is the number of elements in the array, and size is the size of each element
 		other further pointers of pointers should have fixed max length of array to eliminate ambiguity to Enclave (by using pointer [max_buf]).
@@ -57,8 +62,12 @@ Client *myClient; //extern to separate ocall
 Server *myServer; //extern to separate ocall
 
 void ocall_print_string(const char *str) {
-    //printf("%s\n", str);
-	print_bytes((uint8_t*)str,strlen(str));
+    printf("%s\n", str);
+	//print_bytes((uint8_t*)str,strlen(str));
+}
+
+void ocall_print_int(int input){
+	std::cout<<input<<std::endl;
 }
 void ocall_test(int* mint,char* mchar,char* mstring,int len) {
 	//encrypt and send to Ser
@@ -149,6 +158,7 @@ void ocall_query_tokens_entries(const void *Q_w_u_arr,
 
 void ocall_add_update(unsigned char* stag,size_t stag_len,unsigned char* C_id,size_t C_id_len, unsigned char* ind,size_t ind_len,
 unsigned char* C_stag,size_t C_stag_len,uint32_t fingerprint, size_t index,unsigned char* CFId,size_t CFId_len){
+	//std::cout<<fingerprint<<std::endl;
 	myServer->UpdateTSet(stag,stag_len,C_id,C_id_len);
 	myServer->UpdateiTSet(ind,ind_len,C_stag,C_stag_len,1);
 	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,1);
@@ -163,26 +173,56 @@ unsigned char* ind_inverse,size_t ind_inverse_len,uint32_t fingerprint, size_t i
 	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,0);
 }
 
-void ocall_send_stokenList(unsigned char* StokenList,int StokenListSize,unsigned char* ValList,int ValListSize){
-	std::vector<unsigned char*> CidList;
+void ocall_send_stokenList(unsigned char* StokenList,size_t StokenList_len,int StokenListSize,unsigned char* ValList,size_t ValList_len,int* ValListSize, size_t int_len){
+	//std::cout<<StokenListSize<<std::endl;
 	unsigned char* p = StokenList;
 	std::string C_id = "";
 	int size = 0;
+	//print_bytes(StokenList,ENTRY_HASH_KEY_LEN_128*3); 
 	for(int i=0;i<StokenListSize;i++){
-		unsigned char SubStoken[ENTRY_HASH_KEY_LEN_128];
-		memcpy(SubStoken,p,ENTRY_HASH_KEY_LEN_128);
-		CidList.push_back(SubStoken);
+		unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+		memcpy(stag,p,ENTRY_HASH_KEY_LEN_128);
 		p+=ENTRY_HASH_KEY_LEN_128;
-		std::string temp = myServer->QueryTSet(std::string(SubStoken,ENTRY_HASH_KEY_LEN_128));
+		
+		//print_bytes(stag,ENTRY_HASH_KEY_LEN_128); 
+		std::string temp = myServer->QueryTSet(std::string((char*)stag,ENTRY_HASH_KEY_LEN_128));
 		if(temp != ""){
 			size++;
 			C_id += temp;
 		}
-	}
-	ValList = (unsigned char*)C_id.c_str();
-	ValListSize = size;
+	} 
+	//std::cout<<C_id.length()<<std::endl;
+	memcpy(ValList,(unsigned char*)C_id.c_str(),C_id.length());
+	//std::cout<<strlen((char*)ValList)<<std::endl;
+	*ValListSize = size;
 }
 
+void ocall_Get_CF(unsigned char* CFId, size_t CFId_len,uint32_t* fingerprint, size_t fingerprint_len, size_t len){
+	std::string sCFId((char*)CFId,CFId_len);
+	CuckooFilter* CF = myServer->GetCF(sCFId);
+	int index = 0;
+	//len = single_table_length*4
+	while(index<len){
+		fingerprint[index] = CF->read(index/4,index%4);
+		index++;
+	}
+	//std::cout<<fingerprint[63438]
+}
+
+void ocall_test_int(size_t test, uint32_t* fingerprint, size_t fingerprint_len,size_t len){
+	if(test == 1){
+		printf("test");
+		for(int i=0;i<len;i++){
+			fingerprint[i] = i;
+		}
+	}
+}
+
+void ocall_Get_Res(char* res,size_t res_len){
+	for(int i=0;i<res_len;i++){
+		std::cout<<res[i]<<std::endl;
+	}
+}
 
 //main func
 int main()
@@ -227,21 +267,76 @@ int main()
 	ecall_init(eid,key_array);
 	std::cout<<"SGX get K_T, K_Z and K_X."<<std::endl;
 
+	/**********************更新数据******************/
+
+	std::ifstream file("./dataset/Email-Enron");
+
+	// 检查文件是否成功打开
+    if (!file.is_open()) {
+        std::cerr << "无法打开文件" << std::endl;
+        return 1;
+    }
+
+	// 逐行读取文件
+    std::string line;
+	int number = 0;
+    while (std::getline(file, line)) {
+        // 使用字符串流将每行分割成元素
+        std::istringstream iss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (iss >> item) {
+            items.push_back(item);
+        }
+		std::string sw = "friend:"+ items[0];
+		std::string sid = items[1];
+		const char* w = sw.c_str();
+		size_t w_len = sw.length();
+		const char* id = sid.c_str();
+		size_t id_len = sid.length();
+		ecall_update_data(eid,w, w_len, id, id_len, 1);
+		number ++;
+    }
+	std::cout<<"number:"<<number<<std::endl;
+    // 关闭文件
+    file.close();
+
+	std::string query_str = "friend:1&friend:5&friend:4";
+	ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
 	
 
 	/****************************test******************************/
-	//测试Update
-	std::string sw = "friend:1";
-	std::string sid = "1001";
+	// //测试Update
+	// std::string sw = "friend:1";
+	// std::vector<std::string> sid = {"1001","1002","1003","1004"};
 
-	const char* w = sw.c_str();
-	size_t w_len = sw.length();
-	const char* id = sid.c_str();
-	size_t id_len = sid.length(); 
-	ecall_update_data(eid,w, w_len, id, id_len, 1);
+	// for(int i=0;i<sid.size();i++){
+	// 	const char* w = sw.c_str();
+	// 	size_t w_len = sw.length();
+	// 	const char* id = sid[i].c_str();
+	// 	size_t id_len = sid[i].length(); 
+	// 	ecall_update_data(eid,w, w_len, id, id_len, 1);
+	// }
+	
 
-	//测试Search
+	// std::string sw2 = "friend:2";
+	// std::vector<std::string> sid2 = {"1001","1005","1006"};
+	// for(int i=0;i<sid2.size();i++){
+	// 	const char* w2 = sw2.c_str();
+	// 	size_t w_len2 = sw2.length();
+	// 	const char* id2 = sid2[i].c_str();
+	// 	size_t id_len2 = sid2[i].length(); 
+	// 	ecall_update_data(eid,w2, w_len2, id2, id_len2, 1);
+	// }
 
+	// //测试Search
+	// std::string query_str = "friend:1&friend:2";
+	// ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
+
+
+	// size_t test = 1;
+	// ecall_test_int(eid,test);
 
 
 
@@ -254,145 +349,6 @@ int main()
 	// //为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
 	// ecall_hash_test(eid,cxtag,xtag.length()+1);
 	//
-
-
-
-	// //设置docContent
-	// docContent *fetch_data;
-	// fetch_data = (docContent *)malloc(sizeof(docContent));
-	// std::string test1 = "id";
-	// std::string test2 = "yangxuyangxuyangxuyangxu";
-	// fetch_data->id.id_length = test1.length()+1;
-	// fetch_data->content_length = test2.length()+1;
-	// fetch_data->content = (char*) malloc(fetch_data->content_length);
-	// fetch_data->id.doc_id = (char*)malloc(fetch_data->id.id_length);
-	// memcpy(fetch_data->id.doc_id, test1.c_str(),fetch_data->id.id_length);
-	// memcpy(fetch_data->content, test2.c_str(),fetch_data->content_length);
-	// //设置密文实体
-	// entry *encrypted_entry;
-	// encrypted_entry = (entry*)malloc(sizeof(entry));
-	// encrypted_entry->first.content_length = fetch_data->id.id_length; //add dociId
-	// encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
-	// encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//f
-	// encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
-	// //加密操作
-	// myClient->EncryptDoc(fetch_data,encrypted_entry);
-	// //发送到enclave中
-	// ecall_test(eid,encrypted_entry->second.message,encrypted_entry->second.message_length);
-	
-	// free(fetch_data->content);
-	// free(fetch_data->id.doc_id);
-	// free(fetch_data);
-	
-	// free(encrypted_entry->first.content);
-	// free(encrypted_entry->second.message);
-	// free(encrypted_entry);
-
-
-
-
-
-
-
-
-
-
-	/****************************actual opreation******************************/
-	// printf("Adding doc\n");
-	
-	// /*** 处理插入操作Update Protocol with op = add */
-	// uint64_t start_add_time =  timeSinceEpochMillisec(); //插入操作开始时间
-	// for(int i=1;i <= total_file_no; i++){  //total_file_no 多个Update
-	// 	//client read a document
-	// 	//printf("->%d",i);
-	// 	docContent *fetch_data;//原始文档
-	// 	fetch_data = (docContent *)malloc(sizeof( docContent));
-    //     //获取下一篇doc
-	// 	myClient->ReadNextDoc(fetch_data);
-
-	// 	//encrypt and send to Server 
-	// 	entry *encrypted_entry;
-	// 	encrypted_entry = (entry*)malloc(sizeof(entry));
-		
-	// 	encrypted_entry->first.content_length = fetch_data->id.id_length; //初始化长度
-	// 	encrypted_entry->first.content = (char*) malloc(fetch_data->id.id_length);
-	// 	encrypted_entry->second.message_length = fetch_data->content_length + AESGCM_MAC_SIZE + AESGCM_IV_SIZE;	//初始化长度
-	// 	encrypted_entry->second.message = (char *)malloc(encrypted_entry->second.message_length);
-
-	// 	//客户端对doc进行加密,结果存入entry实体中
-	// 	myClient->EncryptDoc(fetch_data,encrypted_entry);
-		
-	// 	//send(id,f) to server
-	// 	myServer->ReceiveEncDoc(encrypted_entry);
-		
-	// 	//upload (op,id) to Enclave
-	// 	/*****************更新enclave中数据结构*************************/
-	// 	//encalve Update所有操作
-	// 	//Question: 这个多出一个sgx id的参数是sgx的特性吗？
-	// 	ecall_addDoc(eid,fetch_data->id.doc_id,fetch_data->id.id_length,
-	// 				fetch_data->content,fetch_data->content_length);
-	// 	/**************************************************************/
-
-	// 	//free memory 
-	// 	free(fetch_data->content);
-	// 	free(fetch_data->id.doc_id);
-	// 	free(fetch_data);
-
-	// 	free(encrypted_entry->first.content);
-	// 	free(encrypted_entry->second.message);
-	// 	free(encrypted_entry);
-	// }
-	// uint64_t end_add_time =  timeSinceEpochMillisec(); //插入操作结束时间
-	// std::cout << "********Time for adding********" << std::endl;
-	// std::cout << "Total time:" << end_add_time-start_add_time << " ms" << std::endl;
-	// std::cout << "Average time (file):" << (end_add_time-start_add_time)*1.0/total_file_no << " ms" << std::endl;
-	// std::cout << "Average time (pair):" << (end_add_time-start_add_time)*1.0/total_pair_no << " ms" << std::endl;
-
-	// //** 处理删除操作Update Protocol with op = del (id)
-	// printf("\nDeleting doc\n");
-	// uint64_t start_del_time =  timeSinceEpochMillisec(); //删除操作开始时间
-	// //docId* delV = new docId[del_no];
-	// docId delV_i; //docID:文件ID数据结构
-	// for(int del_index=1; del_index <=del_no; del_index++){
-	// 	//printf("->%s",delV_i[del_index].doc_id);
-	// 	myClient->Del_GivenDocIndex(del_index, &delV_i);
-    //     /*****************在enclave中查询关键字*************************/
-	// 	ecall_delDoc(eid,delV_i.doc_id,delV_i.id_length); //加入到 d 列表
-    //     /**************************************************************/
-	// }
-	// uint64_t end_del_time =  timeSinceEpochMillisec(); //删除操作结束时间
-	// std::cout << "********Time for deleting********" << std::endl;
-	// std::cout << "Total time:" << end_del_time-start_del_time << " ms" << std::endl;
-	// std::cout << "Average time:" << (end_del_time-start_del_time)*1.0/del_no << " ms" << std::endl;
-
-	// free(delV_i.doc_id);
-
-	
-    // /*** 处理搜索操作***/
-	// // std::string s_keyword[2]= {"list","clinton"}; 
-	// std::string s_keyword[1]= {"bird"};
-	// int keyword_count = 1; //查询关键字的数量
-	// std::cout << "********Time for searching********" << std::endl;
-	// uint64_t total_search_time = 0;
-	// for (int s_i = 0; s_i < keyword_count; s_i++){
-	// 	std::cout << "Searching ==>" << s_keyword[s_i].c_str() << std::endl;
-	// 	// printf("\nSearching ==> %s\n", s_keyword[s_i].c_str());
-	// 	uint64_t start_time =  timeSinceEpochMillisec();
-	// 	// std::cout << timeSinceEpochMillisec() << std::endl;
-    //     /*****************将文档id加入删除list*************************/
-	// 	ecall_search(eid, s_keyword[s_i].c_str(), s_keyword[s_i].size());//直接对应第三部分Search的所有流程
-    //     /*****************将文档id加入删除list*************************/
-    //     uint64_t end_time =  timeSinceEpochMillisec();
-	// 	// std::cout << timeSinceEpochMillisec() << std::endl;
-	// 	std::cout << "Elapsed time:" << end_time-start_time << " ms"  << std::endl;
-	// 	total_search_time += end_time-start_time;
-	// }
-	// std::cout << "Total time:" << total_search_time << " ms" << std::endl;
-	// std::cout << "Average time:" << total_search_time*1.0/keyword_count << " ms" << std::endl;
-
-	// delete myClient;
-	// // delete myServer;
-
 	return 0;
 }
 

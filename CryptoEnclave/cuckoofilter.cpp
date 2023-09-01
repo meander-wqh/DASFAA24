@@ -181,6 +181,7 @@ bool CuckooFilter::queryItem(const char* item){
 	size_t index, alt_index;
 	uint32_t fingerprint;
 	generateIF(item, index, fingerprint, fingerprint_size, single_table_length);
+	//ocall_print_int(fingerprint);
 
 	if(queryImpl(index, fingerprint)){
 		return true;

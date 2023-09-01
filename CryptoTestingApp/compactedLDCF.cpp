@@ -62,6 +62,7 @@ bool CompactedLogarithmicDynamicCuckooFilter::insertItem(std::string CFId, size_
 	std::cout<<"bool CompactedLogarithmicDynamicCuckooFilter::insertItem(int level, size_t index, uint32_t fingerprint)"<<std::endl;
 	int level = CFId.length();
 	std::cout<<"fingerprint: "<<fingerprint<<endl;
+	std::cout<<"index: "<<index<<endl;
 	std::cout<<"insertItem in:"<<CFId<<std::endl;
 	//这里传入的指纹长度是完整的，在插入的时候才会进行截取
 	// uint32_t uCFId = fingerprint >> (fingerprint_size-level);
@@ -301,6 +302,10 @@ float CompactedLogarithmicDynamicCuckooFilter::size_in_mb(){
 	}
 
 	return b / 8.0 / 1024 / 1024;
+}
+
+CuckooFilter* CompactedLogarithmicDynamicCuckooFilter::GetCF(std::string CFId){
+	return CFMap[CFId];
 }
 
 uint64_t CompactedLogarithmicDynamicCuckooFilter::upperpower2(uint64_t x) {

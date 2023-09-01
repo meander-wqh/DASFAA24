@@ -16,6 +16,7 @@
 #include "../common/data_type.h"
 #include "cuckoofilter.h"
 #include "linktree.h"
+#include <queue>
 
 using namespace std;
 
@@ -36,10 +37,13 @@ std::unordered_map<std::string, int> ST; //关键字与对应文件次数哈希�
 std::unordered_map<std::string, std::vector<std::string>> D; //关键字与被删文件ID哈希表
 std::unordered_map<std::string, int> UpdateCnt;
 std::unordered_map<std::string, CuckooFilter*> CFs;
+std::queue<std::string> CFQueue;
+
 LinkTree* cf_tree = nullptr;
 
 int fingerprint_size = 0;
 int single_table_length = 0;
+int single_capacity = 0;
 
 
 std::vector<std::string> d; //被删文件ID列表
@@ -64,7 +68,7 @@ void ecall_init(unsigned char key_array[3][16]){
 	
 	single_table_length = upperpower2(capacity/4.0/EXP_BLOCK_NUM);
 
-	int single_capacity = single_table_length*0.9375*4;//s=6 1920 s=12 960 s=24 480 s=48 240 s=96 120
+	single_capacity = single_table_length*0.9375*4;//s=6 1920 s=12 960 s=24 480 s=48 240 s=96 120
 
 	double false_positive = FALSE_POSITIVE;
 	double single_false_positive = 1-pow(1.0-false_positive, ((double)single_capacity/capacity));
@@ -122,10 +126,10 @@ void ecall_hash_test(const char* data, size_t len){
     ocall_print_string(cres);
 }
 
-//TODO:
 void ecall_Conjunctive_Exact_Social_Search(char* str){
+    std::string sResList = "";
     std::string input(str);
-    std::vector<std::string> tokens;
+    std::vector<std::string> tokens;//w1...wn
     int LeastWIndex = 0;//UpdateCnt次数最少的w的下标
     int leastUpdateCnt = -1;
     int index = 0;
@@ -146,34 +150,276 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
         pos++;
         input = input.substr(pos);
         pos = 0;
-
     }
-    tokens.push_back(input);
+    // 最后的一节字符串
+    if(UpdateCnt[input]<leastUpdateCnt){
+        LeastWIndex = index;
+    }
+    tokens.push_back(input); 
 
+    // for(int i=0;i<tokens.size();i++){
+    //     ocall_print_string(tokens[i].c_str());
+    // }
     std::vector<unsigned char*> stokenList;
+
+    //ocall_print_string(tokens[LeastWIndex].c_str());
     //查询
-    for(int j=0;j<UpdateCnt[tokens[LeastWIndex]];++j){
+    for(int j=1;j<=UpdateCnt[tokens[LeastWIndex]];++j){
+        //这里每一个stag地址都一样
         unsigned char stag[ENTRY_HASH_KEY_LEN_128];
         unsigned char* msg = (unsigned char*)(tokens[LeastWIndex] + std::to_string(j)).c_str();
-        int msg_len = (tokens[LeastWIndex] + std::to_string(j)).c_str();
+        int msg_len = (tokens[LeastWIndex] + std::to_string(j)).length();
+        // printf("msg_len:");
+        // ocall_print_int(msg_len);
         hash_SHA128(K_T, msg, msg_len, stag);
-        stokenList.push_back(stag);
+        // printf("stag:");
+        // print_bytes(stag,ENTRY_HASH_KEY_LEN_128);
+        unsigned char* stag_copy = new unsigned char[ENTRY_HASH_KEY_LEN_128];
+        memcpy(stag_copy, stag, ENTRY_HASH_KEY_LEN_128);
+        stokenList.push_back(stag_copy);
     }
+
     int length = ENTRY_HASH_KEY_LEN_128*stokenList.size();
     unsigned char StrStokenList[length];
     unsigned char* p = StrStokenList;
-    for(int i=0;i<stokenList.size();++i){
+    for(int i=0;i<stokenList.size();i++){
+        // printf("stokenList[i]:");
+        // print_bytes(stokenList[i],ENTRY_HASH_KEY_LEN_128);
         memcpy(p,stokenList[i],ENTRY_HASH_KEY_LEN_128);
         p += ENTRY_HASH_KEY_LEN_128;
     }
+    //print_bytes(StrStokenList,length);
 
-    unsigned char* ValList = nullptr;
-    int ValListSize;
-    ocall_send_stokenList(StrStokenList,stokenList.size(),ValList,ValListSize);
-    //TODO
+    int CidList_max_len = stokenList.size() * ENTRY_HASH_KEY_LEN_128;
+    unsigned char CidList[CidList_max_len+1];//凡是要通过ocall，ecall传出传入的字符串，都需要加一位存储终止操作符，不然桥函数不会自动分配终止符导致长度混乱？
+    int CidListSize;
+    ocall_send_stokenList(StrStokenList,length,stokenList.size(),CidList,CidList_max_len+1,&CidListSize,(size_t)sizeof(int));
+
+    unsigned char* CidListP = CidList;
+    // printf("CidList_len:");
+    // ocall_print_int(strlen((const char*)CidList));//TODO,长度为22？,有小概率长度为0？为什么:长度为0时说明stag不正确，没有取出值，而长度是因为没设置终止符
+    // ocall_print_int(CidListSize);
+    // ocall_print_int(CidList_max_len);
+    //print_bytes(CidList,CidList_max_len);
+    for(int j=0;j<CidListSize;j++){
+        int flag = 0;
+        unsigned char Cid[ENTRY_HASH_KEY_LEN_128];
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_Z,(unsigned char*)tokens[LeastWIndex].c_str(),tokens[LeastWIndex].length(),tempF_2);
+        memcpy(Cid,CidListP,ENTRY_HASH_KEY_LEN_128);
+        //print_bytes(Cid,ENTRY_HASH_KEY_LEN_128);
+        CidListP+=ENTRY_HASH_KEY_LEN_128;
+        unsigned char id[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(Cid,tempF_2,ENTRY_HASH_KEY_LEN_128,id);//这里的id是经过填充的
+        string sid = DePatch(id);
+        // printf(sid.c_str());
+        for(int i=0;i<tokens.size();i++){
+            if(i != LeastWIndex){
+                std::string sxtag = tokens[i] + sid;
+                //ocall_print_string(sxtag.c_str());
+                const char* xtag = sxtag.c_str();
+                // printf("xtag strlen:");
+                // ocall_print_int(strlen(xtag));
+                size_t index;
+                uint32_t fingerprint;
+                generateIF(xtag,index,fingerprint,fingerprint_size,single_table_length);
+                std::string CFId = cf_tree->getCFId(fingerprint,fingerprint_size);
+                if(CFs.find(CFId) == CFs.end()){
+                    if(CFs.size() == MostCFs){
+                        delete CFs[CFQueue.front()];
+                        CFs.erase(CFQueue.front());
+                        CFQueue.pop();
+                    }
+                    CFQueue.push(CFId);
+                    uint32_t fingerprints[single_table_length*4];
+                    //这里single_table_length*4太大了，会导致段错误
+                    ocall_Get_CF((unsigned char*)CFId.c_str(), CFId.length() ,fingerprints, sizeof(uint32_t), single_table_length*4);
+                    CFs[CFId] = new CuckooFilter(CFId,single_table_length, fingerprint_size, single_capacity, CFId.length());	
+                    int index = 0;
+                    int notNull = 0;
+                    while(index<single_table_length*4){
+                        CFs[CFId]->write(index / 4, index%4 , fingerprints[index]);
+                        //这里只能取到1个指纹，但应该是两个
+                        // if(fingerprints[index] != 0){
+                        //     notNull++;
+                        //     ocall_print_int(notNull);
+                        //     printf("fingerprint:");
+                        //     ocall_print_int(fingerprints[index]);
+                        // }
+                        index++;
+                    }
+                }
+                CuckooFilter* CF = CFs[CFId];
+                //这里面xtag求出的指纹没有问题
+                if(CF->queryItem(xtag) == false){
+                    //printf("not found");
+                    flag = 1; //没找到
+                    break;
+                }
+            }
+        }
+        if(flag == 0){
+            sResList += sid;
+            sResList += "&";
+        }
+    }
 
 
+    for(int i=0;i<stokenList.size();i++){
+        delete stokenList[i];
+    }
+    printf("Res:");
+    printf((char*)sResList.c_str());
+    ///ocall_Get_Res((char*)sResList.c_str(),sResList.length());
+}
 
+//输入是要模糊查询的子串，然后在SGX里面处理成需要的数据结构
+void ecall_Conjunctive_Fuzzy_Social_Search(char* str){
+    std::string sResList = "";
+    std::string input(str);
+    std::vector<std::string> tokens;//w1...wn
+    int LeastWIndex = 0;//UpdateCnt次数最少的w的下标
+    int leastUpdateCnt = -1;
+    int index = 0;
+    //分割
+    size_t pos = 0;//&的位置
+    size_t pospos = 0;//|的位置
+    while((pos = input.find('&', pos)) != std::string::npos){   
+        tokens.push_back(input.substr(0, pos));
+        if(index == 0){
+            leastUpdateCnt = UpdateCnt[input.substr(0, pos)];
+            LeastWIndex = index;
+        }else{
+            leastUpdateCnt = UpdateCnt[input.substr(0, pos)]<leastUpdateCnt? UpdateCnt[input.substr(0, pos)]:leastUpdateCnt;
+            if(UpdateCnt[input.substr(0, pos)]<leastUpdateCnt){
+                LeastWIndex = index;
+            }
+        }
+        index++;
+        pos++;
+        input = input.substr(pos);
+        pos = 0;
+    }
+    // 最后的一节字符串
+    if(UpdateCnt[input]<leastUpdateCnt){
+        LeastWIndex = index;
+    }
+    tokens.push_back(input); 
+
+    // for(int i=0;i<tokens.size();i++){
+    //     ocall_print_string(tokens[i].c_str());
+    // }
+    std::vector<unsigned char*> stokenList;
+
+    //ocall_print_string(tokens[LeastWIndex].c_str());
+    //查询
+    for(int j=1;j<=UpdateCnt[tokens[LeastWIndex]];++j){
+        //这里每一个stag地址都一样
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        unsigned char* msg = (unsigned char*)(tokens[LeastWIndex] + std::to_string(j)).c_str();
+        int msg_len = (tokens[LeastWIndex] + std::to_string(j)).length();
+        // printf("msg_len:");
+        // ocall_print_int(msg_len);
+        hash_SHA128(K_T, msg, msg_len, stag);
+        // printf("stag:");
+        // print_bytes(stag,ENTRY_HASH_KEY_LEN_128);
+        unsigned char* stag_copy = new unsigned char[ENTRY_HASH_KEY_LEN_128];
+        memcpy(stag_copy, stag, ENTRY_HASH_KEY_LEN_128);
+        stokenList.push_back(stag_copy);
+    }
+
+    int length = ENTRY_HASH_KEY_LEN_128*stokenList.size();
+    unsigned char StrStokenList[length];
+    unsigned char* p = StrStokenList;
+    for(int i=0;i<stokenList.size();i++){
+        // printf("stokenList[i]:");
+        // print_bytes(stokenList[i],ENTRY_HASH_KEY_LEN_128);
+        memcpy(p,stokenList[i],ENTRY_HASH_KEY_LEN_128);
+        p += ENTRY_HASH_KEY_LEN_128;
+    }
+    //print_bytes(StrStokenList,length);
+
+    int CidList_max_len = stokenList.size() * ENTRY_HASH_KEY_LEN_128;
+    unsigned char CidList[CidList_max_len+1];//凡是要通过ocall，ecall传出传入的字符串，都需要加一位存储终止操作符，不然桥函数不会自动分配终止符导致长度混乱？
+    int CidListSize;
+    ocall_send_stokenList(StrStokenList,length,stokenList.size(),CidList,CidList_max_len+1,&CidListSize,(size_t)sizeof(int));
+
+    unsigned char* CidListP = CidList;
+    // printf("CidList_len:");
+    // ocall_print_int(strlen((const char*)CidList));//TODO,长度为22？,有小概率长度为0？为什么:长度为0时说明stag不正确，没有取出值，而长度是因为没设置终止符
+    // ocall_print_int(CidListSize);
+    // ocall_print_int(CidList_max_len);
+    //print_bytes(CidList,CidList_max_len);
+    for(int j=0;j<CidListSize;j++){
+        int flag = 0;
+        unsigned char Cid[ENTRY_HASH_KEY_LEN_128];
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_Z,(unsigned char*)tokens[LeastWIndex].c_str(),tokens[LeastWIndex].length(),tempF_2);
+        memcpy(Cid,CidListP,ENTRY_HASH_KEY_LEN_128);
+        //print_bytes(Cid,ENTRY_HASH_KEY_LEN_128);
+        CidListP+=ENTRY_HASH_KEY_LEN_128;
+        unsigned char id[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(Cid,tempF_2,ENTRY_HASH_KEY_LEN_128,id);//这里的id是经过填充的
+        string sid = DePatch(id);
+        // printf(sid.c_str());
+        for(int i=0;i<tokens.size();i++){
+            if(i != LeastWIndex){
+                std::string sxtag = tokens[i] + sid;
+                //ocall_print_string(sxtag.c_str());
+                const char* xtag = sxtag.c_str();
+                // printf("xtag strlen:");
+                // ocall_print_int(strlen(xtag));
+                size_t index;
+                uint32_t fingerprint;
+                generateIF(xtag,index,fingerprint,fingerprint_size,single_table_length);
+                std::string CFId = cf_tree->getCFId(fingerprint,fingerprint_size);
+                if(CFs.find(CFId) == CFs.end()){
+                    if(CFs.size() == MostCFs){
+                        delete CFs[CFQueue.front()];
+                        CFs.erase(CFQueue.front());
+                        CFQueue.pop();
+                    }
+                    CFQueue.push(CFId);
+                    uint32_t fingerprints[single_table_length*4];
+                    //这里single_table_length*4太大了，会导致段错误
+                    ocall_Get_CF((unsigned char*)CFId.c_str(), CFId.length() ,fingerprints, sizeof(uint32_t), single_table_length*4);
+                    CFs[CFId] = new CuckooFilter(CFId,single_table_length, fingerprint_size, single_capacity, CFId.length());	
+                    int index = 0;
+                    int notNull = 0;
+                    while(index<single_table_length*4){
+                        CFs[CFId]->write(index / 4, index%4 , fingerprints[index]);
+                        //这里只能取到1个指纹，但应该是两个
+                        // if(fingerprints[index] != 0){
+                        //     notNull++;
+                        //     ocall_print_int(notNull);
+                        //     printf("fingerprint:");
+                        //     ocall_print_int(fingerprints[index]);
+                        // }
+                        index++;
+                    }
+                }
+                CuckooFilter* CF = CFs[CFId];
+                //这里面xtag求出的指纹没有问题
+                if(CF->queryItem(xtag) == false){
+                    //printf("not found");
+                    flag = 1; //没找到
+                    break;
+                }
+            }
+        }
+        if(flag == 0){
+            sResList += sid;
+            sResList += "&";
+        }
+    }
+
+
+    for(int i=0;i<stokenList.size();i++){
+        delete stokenList[i];
+    }
+    printf("Res:");
+    printf((char*)sResList.c_str());
+    ///ocall_Get_Res((char*)sResList.c_str(),sResList.length());
 }
 
 void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_len, size_t op){
@@ -185,8 +431,9 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
 
     uint32_t fingerprint = 0;
     size_t index = 0;
-
+    //ocall_print_string(xtag.c_str());
     generateIF(xtag.c_str(), index, fingerprint, fingerprint_size, single_table_length);
+    //ocall_print_int((int)fingerprint);
     std::string CFId = cf_tree->getCFId(fingerprint,fingerprint_size);
     if(op == 1){
         //add
@@ -199,6 +446,7 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         int msg_len = (sw+std::to_string(UpdateCnt[sw])).length();
 
         hash_SHA128(K_T, msg, msg_len, stag);
+        //print_bytes(stag,ENTRY_HASH_KEY_LEN_128);
         unsigned char C_id[ENTRY_HASH_KEY_LEN_128];
         unsigned char PatchValue[ENTRY_HASH_KEY_LEN_128];
         PatchTo128(sid, PatchValue);
@@ -210,16 +458,18 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         unsigned char ind[ENTRY_HASH_KEY_LEN_128];
         hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
 
-        PatchTo128((sw+"|"+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
+        PatchTo128((sw+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
         unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
         Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
+        //ocall_print_int(fingerprint);
         //Send to Server
         ocall_add_update(
             stag,ENTRY_HASH_KEY_LEN_128,
             C_id,ENTRY_HASH_KEY_LEN_128,
             ind,ENTRY_HASH_KEY_LEN_128,
             C_stag,ENTRY_HASH_KEY_LEN_128,
-            fingerprint,index,
+            fingerprint,
+            index,
             (unsigned char*)CFId.c_str(),CFId.length()
         );
     }else{
@@ -249,7 +499,95 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
             stag_inverse,ENTRY_HASH_KEY_LEN_128,
             ind,ENTRY_HASH_KEY_LEN_128,
             ind_inverse,ENTRY_HASH_KEY_LEN_128,
-            fingerprint,index,
+            fingerprint,
+            index,
+            (unsigned char*)CFId.c_str(),CFId.length()
+        );
+    }
+}
+
+void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t id_len, size_t pos, size_t op){
+    std::string xtag;
+    std::string sw(w,w_len);
+    std::string sid(id,id_len);
+    std::string spos = std::to_string(pos);
+    xtag = sw + sid + spos;
+    //cal fingerprint
+
+    uint32_t fingerprint = 0;
+    size_t index = 0;
+    //ocall_print_string(xtag.c_str());
+    generateIF(xtag.c_str(), index, fingerprint, fingerprint_size, single_table_length);
+    //ocall_print_int((int)fingerprint);
+    std::string CFId = cf_tree->getCFId(fingerprint,fingerprint_size);
+    if(op == 1){
+        //add
+        if(UpdateCnt.find(sw) == UpdateCnt.end()){
+            UpdateCnt[sw] = 0;
+        }
+        UpdateCnt[sw]++;
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        unsigned char* msg = (unsigned char*)(sw+std::to_string(UpdateCnt[sw])).c_str();
+        int msg_len = (sw+std::to_string(UpdateCnt[sw])).length();
+
+        hash_SHA128(K_T, msg, msg_len, stag);
+        //print_bytes(stag,ENTRY_HASH_KEY_LEN_128);
+        unsigned char C_id[ENTRY_HASH_KEY_LEN_128];
+        unsigned char PatchValue[ENTRY_HASH_KEY_LEN_128];
+
+        sid = sid + "|" + spos; //id与pos用|分割
+        PatchTo128(sid, PatchValue); 
+
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_Z,sw.c_str(),sw.length(),tempF_2);
+
+        Hashxor(PatchValue, tempF_2, ENTRY_HASH_KEY_LEN_128, C_id);
+        unsigned char ind[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
+
+        PatchTo128((sw+std::to_string(UpdateCnt[sw]).c_str()),PatchValue);
+        unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
+        //ocall_print_int(fingerprint);
+        //Send to Server
+        ocall_add_update(
+            stag,ENTRY_HASH_KEY_LEN_128,
+            C_id,ENTRY_HASH_KEY_LEN_128,
+            ind,ENTRY_HASH_KEY_LEN_128,
+            C_stag,ENTRY_HASH_KEY_LEN_128,
+            fingerprint,
+            index,
+            (unsigned char*)CFId.c_str(),CFId.length()
+        );
+    }else{
+        unsigned char stag_inverse[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_T, (sw+std::to_string(UpdateCnt[sw])).c_str() , (sw+std::to_string(UpdateCnt[sw])).length(), stag_inverse);
+        UpdateCnt[sw]--;
+        unsigned char C_id_inverse[ENTRY_HASH_KEY_LEN_128];
+        ocall_Query_TSet(stag_inverse,ENTRY_HASH_KEY_LEN_128, C_id_inverse,ENTRY_HASH_KEY_LEN_128);
+        unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_Z,sw.c_str(),sw.length(),tempF_2);
+        unsigned char PatchValue[ENTRY_HASH_KEY_LEN_128];
+        Hashxor(C_id_inverse,tempF_2,ENTRY_HASH_KEY_LEN_128,PatchValue);
+        std::string sid_inverse = DePatch(PatchValue);
+        unsigned char ind_inverse[ENTRY_HASH_KEY_LEN_128];
+        unsigned char ind[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_X,(sw+sid_inverse).c_str(),(sw+sid_inverse).length(),ind_inverse);
+        hash_SHA128(K_X,(sw+sid).c_str(),(sw+sid).length(),ind);
+        unsigned char C_stag[ENTRY_HASH_KEY_LEN_128];
+        ocall_Query_iTSet(ind, ENTRY_HASH_KEY_LEN_128,C_stag,ENTRY_HASH_KEY_LEN_128);
+        Hashxor(C_stag,tempF_2,ENTRY_HASH_KEY_LEN_128,PatchValue);
+        std::string sDePatchValue = DePatch(PatchValue);
+        unsigned char stag[ENTRY_HASH_KEY_LEN_128];
+        hash_SHA128(K_T,sDePatchValue.c_str(),sDePatchValue.length(),stag);
+        //Send to Server
+        ocall_del_update(
+            stag,ENTRY_HASH_KEY_LEN_128,
+            stag_inverse,ENTRY_HASH_KEY_LEN_128,
+            ind,ENTRY_HASH_KEY_LEN_128,
+            ind_inverse,ENTRY_HASH_KEY_LEN_128,
+            fingerprint,
+            index,
             (unsigned char*)CFId.c_str(),CFId.length()
         );
     }
@@ -384,6 +722,14 @@ void ecall_addDoc(char *doc_id, size_t id_length,char *content,int content_lengt
 void ecall_delDoc(char *doc_id, size_t id_length){
     std::string delId(doc_id,id_length);
     d.push_back(delId); //被删文件ID列后添加一个ID
+}
+
+void ecall_test_int(size_t test){
+    uint32_t* fingerprint = new uint32_t[10];
+    ocall_test_int(test, fingerprint, sizeof(uint32_t),10);
+    for(int i=0;i<10;i++){
+        ocall_print_int((int)fingerprint[i]);
+    }
 }
 
 /*** search for a keyword */

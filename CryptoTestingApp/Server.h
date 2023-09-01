@@ -36,6 +36,8 @@ class Server{
         void UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type);
         std::string QueryTSet(std::string key);
         std::string QueryiTSet(std::string key);
+        CuckooFilter* GetCF(std::string CFId);
+
         
     private:
         std::unordered_map<std::string,std::string> M_I;

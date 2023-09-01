@@ -40,6 +40,15 @@ typedef struct ms_ecall_update_data_t {
 	size_t ms_op;
 } ms_ecall_update_data_t;
 
+typedef struct ms_ecall_Conjunctive_Exact_Social_Search_t {
+	char* ms_str;
+	size_t ms_str_len;
+} ms_ecall_Conjunctive_Exact_Social_Search_t;
+
+typedef struct ms_ecall_test_int_t {
+	size_t ms_test;
+} ms_ecall_test_int_t;
+
 typedef struct ms_ocall_test2_t {
 	char* ms_encrypted_content;
 	size_t ms_length_content;
@@ -51,10 +60,6 @@ typedef struct ms_ocall_test_t {
 	char* ms_mstring;
 	int ms_len;
 } ms_ocall_test_t;
-
-typedef struct ms_ocall_print_string_t {
-	const char* ms_str;
-} ms_ocall_print_string_t;
 
 typedef struct ms_ocall_transfer_encrypted_entries_t {
 	const void* ms_t1_u_arr;
@@ -144,6 +149,44 @@ typedef struct ms_ocall_Query_iTSet_t {
 	size_t ms_value_len;
 } ms_ocall_Query_iTSet_t;
 
+typedef struct ms_ocall_Get_CF_t {
+	unsigned char* ms_CFId;
+	size_t ms_CFId_len;
+	uint32_t* ms_fingerprint;
+	size_t ms_fingerprint_len;
+	size_t ms_len;
+} ms_ocall_Get_CF_t;
+
+typedef struct ms_ocall_send_stokenList_t {
+	unsigned char* ms_StokenList;
+	size_t ms_StokenList_len;
+	int ms_StokenListSize;
+	unsigned char* ms_ValList;
+	size_t ms_ValList_len;
+	int* ms_ValListSize;
+	size_t ms_int_len;
+} ms_ocall_send_stokenList_t;
+
+typedef struct ms_ocall_print_int_t {
+	int ms_input;
+} ms_ocall_print_int_t;
+
+typedef struct ms_ocall_print_string_t {
+	const char* ms_str;
+} ms_ocall_print_string_t;
+
+typedef struct ms_ocall_test_int_t {
+	size_t ms_test;
+	uint32_t* ms_fingerprint;
+	size_t ms_fingerprint_len;
+	size_t ms_len;
+} ms_ocall_test_int_t;
+
+typedef struct ms_ocall_Get_Res_t {
+	char* ms_res;
+	size_t ms_res_len;
+} ms_ocall_Get_Res_t;
+
 typedef struct ms_sgx_oc_cpuidex_t {
 	int* ms_cpuinfo;
 	int ms_leaf;
@@ -184,14 +227,6 @@ static sgx_status_t SGX_CDECL CryptoEnclave_ocall_test(void* pms)
 {
 	ms_ocall_test_t* ms = SGX_CAST(ms_ocall_test_t*, pms);
 	ocall_test(ms->ms_mint, ms->ms_mchar, ms->ms_mstring, ms->ms_len);
-
-	return SGX_SUCCESS;
-}
-
-static sgx_status_t SGX_CDECL CryptoEnclave_ocall_print_string(void* pms)
-{
-	ms_ocall_print_string_t* ms = SGX_CAST(ms_ocall_print_string_t*, pms);
-	ocall_print_string(ms->ms_str);
 
 	return SGX_SUCCESS;
 }
@@ -276,6 +311,54 @@ static sgx_status_t SGX_CDECL CryptoEnclave_ocall_Query_iTSet(void* pms)
 	return SGX_SUCCESS;
 }
 
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_Get_CF(void* pms)
+{
+	ms_ocall_Get_CF_t* ms = SGX_CAST(ms_ocall_Get_CF_t*, pms);
+	ocall_Get_CF(ms->ms_CFId, ms->ms_CFId_len, ms->ms_fingerprint, ms->ms_fingerprint_len, ms->ms_len);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_send_stokenList(void* pms)
+{
+	ms_ocall_send_stokenList_t* ms = SGX_CAST(ms_ocall_send_stokenList_t*, pms);
+	ocall_send_stokenList(ms->ms_StokenList, ms->ms_StokenList_len, ms->ms_StokenListSize, ms->ms_ValList, ms->ms_ValList_len, ms->ms_ValListSize, ms->ms_int_len);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_print_int(void* pms)
+{
+	ms_ocall_print_int_t* ms = SGX_CAST(ms_ocall_print_int_t*, pms);
+	ocall_print_int(ms->ms_input);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_print_string(void* pms)
+{
+	ms_ocall_print_string_t* ms = SGX_CAST(ms_ocall_print_string_t*, pms);
+	ocall_print_string(ms->ms_str);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_test_int(void* pms)
+{
+	ms_ocall_test_int_t* ms = SGX_CAST(ms_ocall_test_int_t*, pms);
+	ocall_test_int(ms->ms_test, ms->ms_fingerprint, ms->ms_fingerprint_len, ms->ms_len);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_Get_Res(void* pms)
+{
+	ms_ocall_Get_Res_t* ms = SGX_CAST(ms_ocall_Get_Res_t*, pms);
+	ocall_Get_Res(ms->ms_res, ms->ms_res_len);
+
+	return SGX_SUCCESS;
+}
+
 static sgx_status_t SGX_CDECL CryptoEnclave_sgx_oc_cpuidex(void* pms)
 {
 	ms_sgx_oc_cpuidex_t* ms = SGX_CAST(ms_sgx_oc_cpuidex_t*, pms);
@@ -318,13 +401,12 @@ static sgx_status_t SGX_CDECL CryptoEnclave_sgx_thread_set_multiple_untrusted_ev
 
 static const struct {
 	size_t nr_ocall;
-	void * table[18];
+	void * table[23];
 } ocall_table_CryptoEnclave = {
-	18,
+	23,
 	{
 		(void*)CryptoEnclave_ocall_test2,
 		(void*)CryptoEnclave_ocall_test,
-		(void*)CryptoEnclave_ocall_print_string,
 		(void*)CryptoEnclave_ocall_transfer_encrypted_entries,
 		(void*)CryptoEnclave_ocall_retrieve_encrypted_doc,
 		(void*)CryptoEnclave_ocall_del_encrypted_doc,
@@ -335,6 +417,12 @@ static const struct {
 		(void*)CryptoEnclave_ocall_del_update,
 		(void*)CryptoEnclave_ocall_Query_TSet,
 		(void*)CryptoEnclave_ocall_Query_iTSet,
+		(void*)CryptoEnclave_ocall_Get_CF,
+		(void*)CryptoEnclave_ocall_send_stokenList,
+		(void*)CryptoEnclave_ocall_print_int,
+		(void*)CryptoEnclave_ocall_print_string,
+		(void*)CryptoEnclave_ocall_test_int,
+		(void*)CryptoEnclave_ocall_Get_Res,
 		(void*)CryptoEnclave_sgx_oc_cpuidex,
 		(void*)CryptoEnclave_sgx_thread_wait_untrusted_event_ocall,
 		(void*)CryptoEnclave_sgx_thread_set_untrusted_event_ocall,
@@ -413,6 +501,25 @@ sgx_status_t ecall_update_data(sgx_enclave_id_t eid, const char* w, size_t w_len
 	ms.ms_id_len = id_len;
 	ms.ms_op = op;
 	status = sgx_ecall(eid, 6, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* str)
+{
+	sgx_status_t status;
+	ms_ecall_Conjunctive_Exact_Social_Search_t ms;
+	ms.ms_str = str;
+	ms.ms_str_len = str ? strlen(str) + 1 : 0;
+	status = sgx_ecall(eid, 7, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test)
+{
+	sgx_status_t status;
+	ms_ecall_test_int_t ms;
+	ms.ms_test = test;
+	status = sgx_ecall(eid, 8, &ocall_table_CryptoEnclave, &ms);
 	return status;
 }
 

@@ -200,10 +200,11 @@ void Server::UpdateiTSet(unsigned char* ind, size_t ind_len, unsigned char* valu
 void Server::UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type){
   std::string sCFId((char*)CFId, CFId_len);
   if(type == 1){
-    cldcf->insertItem(sCFId,fingerprint,index);
+    //std::cout<<fingerprint<<std::endl;
+    cldcf->insertItem(sCFId,index,fingerprint);
   }
   else{
-    cldcf->deleteItem(sCFId,fingerprint,index);
+    cldcf->deleteItem(sCFId,index,fingerprint);
   }
 }
 
@@ -220,4 +221,8 @@ std::string Server::QueryiTSet(std::string key){
   }else{
     return "";
   }
+}
+
+CuckooFilter* Server::GetCF(std::string CFId){
+  return cldcf->GetCF(CFId);
 }

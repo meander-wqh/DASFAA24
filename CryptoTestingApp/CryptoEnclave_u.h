@@ -24,10 +24,6 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_test2, (char* encrypted_content, size_t
 #define OCALL_TEST_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_test, (int* mint, char* mchar, char* mstring, int len));
 #endif
-#ifndef OCALL_PRINT_STRING_DEFINED__
-#define OCALL_PRINT_STRING_DEFINED__
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_string, (const char* str));
-#endif
 #ifndef OCALL_TRANSFER_ENCRYPTED_ENTRIES_DEFINED__
 #define OCALL_TRANSFER_ENCRYPTED_ENTRIES_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_transfer_encrypted_entries, (const void* t1_u_arr, const void* t1_v_arr, const void* t2_u_arr, const void* t2_v_arr, int pair_count, int rand_size));
@@ -68,6 +64,30 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Query_TSet, (unsigned char* stag, size_
 #define OCALL_QUERY_ITSET_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Query_iTSet, (unsigned char* ind, size_t ind_len, unsigned char* value, size_t value_len));
 #endif
+#ifndef OCALL_GET_CF_DEFINED__
+#define OCALL_GET_CF_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Get_CF, (unsigned char* CFId, size_t CFId_len, uint32_t* fingerprint, size_t fingerprint_len, size_t len));
+#endif
+#ifndef OCALL_SEND_STOKENLIST_DEFINED__
+#define OCALL_SEND_STOKENLIST_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_send_stokenList, (unsigned char* StokenList, size_t StokenList_len, int StokenListSize, unsigned char* ValList, size_t ValList_len, int* ValListSize, size_t int_len));
+#endif
+#ifndef OCALL_PRINT_INT_DEFINED__
+#define OCALL_PRINT_INT_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_int, (int input));
+#endif
+#ifndef OCALL_PRINT_STRING_DEFINED__
+#define OCALL_PRINT_STRING_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_string, (const char* str));
+#endif
+#ifndef OCALL_TEST_INT_DEFINED__
+#define OCALL_TEST_INT_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_test_int, (size_t test, uint32_t* fingerprint, size_t fingerprint_len, size_t len));
+#endif
+#ifndef OCALL_GET_RES_DEFINED__
+#define OCALL_GET_RES_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_Get_Res, (char* res, size_t res_len));
+#endif
 #ifndef SGX_OC_CPUIDEX_DEFINED__
 #define SGX_OC_CPUIDEX_DEFINED__
 void SGX_UBRIDGE(SGX_CDECL, sgx_oc_cpuidex, (int cpuinfo[4], int leaf, int subleaf));
@@ -96,6 +116,8 @@ sgx_status_t ecall_search(sgx_enclave_id_t eid, const char* keyword, size_t len)
 sgx_status_t ecall_test(sgx_enclave_id_t eid, char* encrypted_content, size_t length_content);
 sgx_status_t ecall_hash_test(sgx_enclave_id_t eid, const char* data, size_t len);
 sgx_status_t ecall_update_data(sgx_enclave_id_t eid, const char* w, size_t w_len, const char* id, size_t id_len, size_t op);
+sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* str);
+sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test);
 
 #ifdef __cplusplus
 }

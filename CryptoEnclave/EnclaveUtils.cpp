@@ -23,6 +23,7 @@ void generateIF(const char* item, size_t &index, uint32_t &fingerprint, int fing
 	fingerprint = (uint32_t) (hv & 0xFFFFFFFF);
 	fingerprint &= ((0x1ULL<<fingerprint_size)-1);
 	fingerprint += (fingerprint == 0);
+    //ocall_print_int(fingerprint);
 }
 
 int cmp(const uint8_t *value1, const uint8_t *value2, uint32_t len){

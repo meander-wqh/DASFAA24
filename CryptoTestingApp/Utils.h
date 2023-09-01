@@ -20,4 +20,6 @@ int dec_aes_gcm(unsigned char *ciphertext, int ciphertext_len,
                 const unsigned char *key,
                 unsigned char *plaintext);//解密
 
+uint64_t upperpower2(uint64_t x);
+
 #endif
