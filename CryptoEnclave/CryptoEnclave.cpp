@@ -277,34 +277,28 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
 void ecall_Conjunctive_Fuzzy_Social_Search(char* str){
     std::string sResList = "";
     std::string input(str);
+    if(input.length() < FuzzyCut){
+        printf("string too short");
+        return;
+    }
     std::vector<std::string> tokens;//w1...wn
+    for (int i = 0; i <= input.length() - FuzzyCut; ++i) {
+        std::string substring = input.substr(i, FuzzyCut);
+        tokens.push_back(substring);
+    }
+    
     int LeastWIndex = 0;//UpdateCnt次数最少的w的下标
     int leastUpdateCnt = -1;
-    int index = 0;
-    //分割
-    size_t pos = 0;//&的位置
-    size_t pospos = 0;//|的位置
-    while((pos = input.find('&', pos)) != std::string::npos){   
-        tokens.push_back(input.substr(0, pos));
+    for(int index = 0;index<tokens.size();++index){
         if(index == 0){
-            leastUpdateCnt = UpdateCnt[input.substr(0, pos)];
-            LeastWIndex = index;
+            leastUpdateCnt = UpdateCnt[tokens[index]];
         }else{
-            leastUpdateCnt = UpdateCnt[input.substr(0, pos)]<leastUpdateCnt? UpdateCnt[input.substr(0, pos)]:leastUpdateCnt;
-            if(UpdateCnt[input.substr(0, pos)]<leastUpdateCnt){
+            if(UpdateCnt[tokens[index]]<leastUpdateCnt){
                 LeastWIndex = index;
+                leastUpdateCnt = UpdateCnt[tokens[index]];
             }
         }
-        index++;
-        pos++;
-        input = input.substr(pos);
-        pos = 0;
     }
-    // 最后的一节字符串
-    if(UpdateCnt[input]<leastUpdateCnt){
-        LeastWIndex = index;
-    }
-    tokens.push_back(input); 
 
     // for(int i=0;i<tokens.size();i++){
     //     ocall_print_string(tokens[i].c_str());
@@ -361,10 +355,16 @@ void ecall_Conjunctive_Fuzzy_Social_Search(char* str){
         unsigned char id[ENTRY_HASH_KEY_LEN_128];
         Hashxor(Cid,tempF_2,ENTRY_HASH_KEY_LEN_128,id);//这里的id是经过填充的
         string sid = DePatch(id);
-        // printf(sid.c_str());
+        int p = 0;
+        p = sid.find('|', p);
+        std::string spos = sid.substr(p+1);
+        int pos = stoi(spos);
+        //ocall_print_int(pos);
+        sid = sid.substr(0,p);
         for(int i=0;i<tokens.size();i++){
             if(i != LeastWIndex){
-                std::string sxtag = tokens[i] + sid;
+                int deltapos = i - LeastWIndex;//相对位置
+                std::string sxtag = tokens[i] + sid + to_string(pos + deltapos);
                 //ocall_print_string(sxtag.c_str());
                 const char* xtag = sxtag.c_str();
                 // printf("xtag strlen:");

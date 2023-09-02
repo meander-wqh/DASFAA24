@@ -40,10 +40,24 @@ typedef struct ms_ecall_update_data_t {
 	size_t ms_op;
 } ms_ecall_update_data_t;
 
+typedef struct ms_ecall_update_data_Fuzzy_t {
+	const char* ms_w;
+	size_t ms_w_len;
+	const char* ms_id;
+	size_t ms_id_len;
+	size_t ms_pos;
+	size_t ms_op;
+} ms_ecall_update_data_Fuzzy_t;
+
 typedef struct ms_ecall_Conjunctive_Exact_Social_Search_t {
 	char* ms_str;
 	size_t ms_str_len;
 } ms_ecall_Conjunctive_Exact_Social_Search_t;
+
+typedef struct ms_ecall_Conjunctive_Fuzzy_Social_Search_t {
+	char* ms_str;
+	size_t ms_str_len;
+} ms_ecall_Conjunctive_Fuzzy_Social_Search_t;
 
 typedef struct ms_ecall_test_int_t {
 	size_t ms_test;
@@ -504,13 +518,37 @@ sgx_status_t ecall_update_data(sgx_enclave_id_t eid, const char* w, size_t w_len
 	return status;
 }
 
+sgx_status_t ecall_update_data_Fuzzy(sgx_enclave_id_t eid, const char* w, size_t w_len, const char* id, size_t id_len, size_t pos, size_t op)
+{
+	sgx_status_t status;
+	ms_ecall_update_data_Fuzzy_t ms;
+	ms.ms_w = w;
+	ms.ms_w_len = w_len;
+	ms.ms_id = id;
+	ms.ms_id_len = id_len;
+	ms.ms_pos = pos;
+	ms.ms_op = op;
+	status = sgx_ecall(eid, 7, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
 sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* str)
 {
 	sgx_status_t status;
 	ms_ecall_Conjunctive_Exact_Social_Search_t ms;
 	ms.ms_str = str;
 	ms.ms_str_len = str ? strlen(str) + 1 : 0;
-	status = sgx_ecall(eid, 7, &ocall_table_CryptoEnclave, &ms);
+	status = sgx_ecall(eid, 8, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_Conjunctive_Fuzzy_Social_Search(sgx_enclave_id_t eid, char* str)
+{
+	sgx_status_t status;
+	ms_ecall_Conjunctive_Fuzzy_Social_Search_t ms;
+	ms.ms_str = str;
+	ms.ms_str_len = str ? strlen(str) + 1 : 0;
+	status = sgx_ecall(eid, 9, &ocall_table_CryptoEnclave, &ms);
 	return status;
 }
 
@@ -519,7 +557,7 @@ sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test)
 	sgx_status_t status;
 	ms_ecall_test_int_t ms;
 	ms.ms_test = test;
-	status = sgx_ecall(eid, 8, &ocall_table_CryptoEnclave, &ms);
+	status = sgx_ecall(eid, 10, &ocall_table_CryptoEnclave, &ms);
 	return status;
 }
 

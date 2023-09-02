@@ -11,5 +11,6 @@
 #define ITEM_NUMBER  10000000
 #define EXP_BLOCK_NUM 10
 #define MostCFs 4
+#define FuzzyCut 3
 
 #endif

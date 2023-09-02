@@ -22,7 +22,9 @@ void ecall_search(const char* keyword, size_t len);
 void ecall_test(char* encrypted_content, size_t length_content);
 void ecall_hash_test(const char* data, size_t len);
 void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_len, size_t op);
+void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t id_len, size_t pos, size_t op);
 void ecall_Conjunctive_Exact_Social_Search(char* str);
+void ecall_Conjunctive_Fuzzy_Social_Search(char* str);
 void ecall_test_int(size_t test);
 
 sgx_status_t SGX_CDECL ocall_test2(char* encrypted_content, size_t length_content);

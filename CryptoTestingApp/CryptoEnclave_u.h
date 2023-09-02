@@ -116,7 +116,9 @@ sgx_status_t ecall_search(sgx_enclave_id_t eid, const char* keyword, size_t len)
 sgx_status_t ecall_test(sgx_enclave_id_t eid, char* encrypted_content, size_t length_content);
 sgx_status_t ecall_hash_test(sgx_enclave_id_t eid, const char* data, size_t len);
 sgx_status_t ecall_update_data(sgx_enclave_id_t eid, const char* w, size_t w_len, const char* id, size_t id_len, size_t op);
+sgx_status_t ecall_update_data_Fuzzy(sgx_enclave_id_t eid, const char* w, size_t w_len, const char* id, size_t id_len, size_t pos, size_t op);
 sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* str);
+sgx_status_t ecall_Conjunctive_Fuzzy_Social_Search(sgx_enclave_id_t eid, char* str);
 sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test);
 
 #ifdef __cplusplus

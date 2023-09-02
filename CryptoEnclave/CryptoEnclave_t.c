@@ -66,10 +66,24 @@ typedef struct ms_ecall_update_data_t {
 	size_t ms_op;
 } ms_ecall_update_data_t;
 
+typedef struct ms_ecall_update_data_Fuzzy_t {
+	const char* ms_w;
+	size_t ms_w_len;
+	const char* ms_id;
+	size_t ms_id_len;
+	size_t ms_pos;
+	size_t ms_op;
+} ms_ecall_update_data_Fuzzy_t;
+
 typedef struct ms_ecall_Conjunctive_Exact_Social_Search_t {
 	char* ms_str;
 	size_t ms_str_len;
 } ms_ecall_Conjunctive_Exact_Social_Search_t;
+
+typedef struct ms_ecall_Conjunctive_Fuzzy_Social_Search_t {
+	char* ms_str;
+	size_t ms_str_len;
+} ms_ecall_Conjunctive_Fuzzy_Social_Search_t;
 
 typedef struct ms_ecall_test_int_t {
 	size_t ms_test;
@@ -617,6 +631,77 @@ err:
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_update_data_Fuzzy(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_ecall_update_data_Fuzzy_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_ecall_update_data_Fuzzy_t* ms = SGX_CAST(ms_ecall_update_data_Fuzzy_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	const char* _tmp_w = ms->ms_w;
+	size_t _tmp_w_len = ms->ms_w_len;
+	size_t _len_w = _tmp_w_len;
+	char* _in_w = NULL;
+	const char* _tmp_id = ms->ms_id;
+	size_t _tmp_id_len = ms->ms_id_len;
+	size_t _len_id = _tmp_id_len;
+	char* _in_id = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_w, _len_w);
+	CHECK_UNIQUE_POINTER(_tmp_id, _len_id);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_w != NULL && _len_w != 0) {
+		if ( _len_w % sizeof(*_tmp_w) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_w = (char*)malloc(_len_w);
+		if (_in_w == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_w, _len_w, _tmp_w, _len_w)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_id != NULL && _len_id != 0) {
+		if ( _len_id % sizeof(*_tmp_id) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_id = (char*)malloc(_len_id);
+		if (_in_id == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_id, _len_id, _tmp_id, _len_id)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+
+	ecall_update_data_Fuzzy((const char*)_in_w, _tmp_w_len, (const char*)_in_id, _tmp_id_len, ms->ms_pos, ms->ms_op);
+
+err:
+	if (_in_w) free(_in_w);
+	if (_in_id) free(_in_id);
+	return status;
+}
+
 static sgx_status_t SGX_CDECL sgx_ecall_Conjunctive_Exact_Social_Search(void* pms)
 {
 	CHECK_REF_POINTER(pms, sizeof(ms_ecall_Conjunctive_Exact_Social_Search_t));
@@ -664,6 +749,53 @@ err:
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_Conjunctive_Fuzzy_Social_Search(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_ecall_Conjunctive_Fuzzy_Social_Search_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_ecall_Conjunctive_Fuzzy_Social_Search_t* ms = SGX_CAST(ms_ecall_Conjunctive_Fuzzy_Social_Search_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	char* _tmp_str = ms->ms_str;
+	size_t _len_str = ms->ms_str_len ;
+	char* _in_str = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_str, _len_str);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_str != NULL && _len_str != 0) {
+		_in_str = (char*)malloc(_len_str);
+		if (_in_str == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_str, _len_str, _tmp_str, _len_str)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+		_in_str[_len_str - 1] = '\0';
+		if (_len_str != strlen(_in_str) + 1)
+		{
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+	ecall_Conjunctive_Fuzzy_Social_Search(_in_str);
+
+err:
+	if (_in_str) free(_in_str);
+	return status;
+}
+
 static sgx_status_t SGX_CDECL sgx_ecall_test_int(void* pms)
 {
 	CHECK_REF_POINTER(pms, sizeof(ms_ecall_test_int_t));
@@ -684,9 +816,9 @@ static sgx_status_t SGX_CDECL sgx_ecall_test_int(void* pms)
 
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[9];
+	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[11];
 } g_ecall_table = {
-	9,
+	11,
 	{
 		{(void*)(uintptr_t)sgx_ecall_init, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_addDoc, 0, 0},
@@ -695,40 +827,42 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_ecall_test, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_hash_test, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_update_data, 0, 0},
+		{(void*)(uintptr_t)sgx_ecall_update_data_Fuzzy, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_Conjunctive_Exact_Social_Search, 0, 0},
+		{(void*)(uintptr_t)sgx_ecall_Conjunctive_Fuzzy_Social_Search, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_test_int, 0, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[23][9];
+	uint8_t entry_table[23][11];
 } g_dyn_entry_table = {
 	23,
 	{
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 
