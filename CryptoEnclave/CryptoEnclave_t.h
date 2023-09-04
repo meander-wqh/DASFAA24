@@ -26,6 +26,9 @@ void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t
 void ecall_Conjunctive_Exact_Social_Search(char* str);
 void ecall_Conjunctive_Fuzzy_Social_Search(char* str);
 void ecall_test_int(size_t test);
+void ecall_get_MostCFs(int* test, size_t int_size);
+sgx_status_t sl_init_switchless(void* sl_data);
+sgx_status_t sl_run_switchless_tworker(void);
 
 sgx_status_t SGX_CDECL ocall_test2(char* encrypted_content, size_t length_content);
 sgx_status_t SGX_CDECL ocall_test(int* mint, char* mchar, char* mstring, int len);
@@ -35,7 +38,7 @@ sgx_status_t SGX_CDECL ocall_del_encrypted_doc(const char* del_id, size_t del_id
 sgx_status_t SGX_CDECL ocall_retrieve_M_c(unsigned char* _u_prime, size_t _u_prime_size, unsigned char* _v_prime, size_t maxLen, int* _v_prime_size, size_t int_len);
 sgx_status_t SGX_CDECL ocall_del_M_c_value(const unsigned char* _u_prime, size_t _u_prime_size);
 sgx_status_t SGX_CDECL ocall_query_tokens_entries(const void* Q_w_u_arr, const void* Q_w_id_arr, int pair_count, int rand_size);
-sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len);
+sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len, int* flag, size_t int_len);
 sgx_status_t SGX_CDECL ocall_del_update(unsigned char* stag, size_t stag_len, unsigned char* stag_inverse, size_t stag_inverse_len, unsigned char* ind, size_t ind_len, unsigned char* ind_inverse, size_t ind_inverse_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len);
 sgx_status_t SGX_CDECL ocall_Query_TSet(unsigned char* stag, size_t stag_len, unsigned char* value, size_t value_len);
 sgx_status_t SGX_CDECL ocall_Query_iTSet(unsigned char* ind, size_t ind_len, unsigned char* value, size_t value_len);

@@ -58,23 +58,25 @@ CompactedLogarithmicDynamicCuckooFilter::~CompactedLogarithmicDynamicCuckooFilte
 
 
 //插入CF的层级，候选index，指纹, 层级代表id的位数，第0层为空字符串，第1层为"0"或者"1"
-bool CompactedLogarithmicDynamicCuckooFilter::insertItem(std::string CFId, size_t index, uint32_t fingerprint){
+int CompactedLogarithmicDynamicCuckooFilter::insertItem(std::string CFId, size_t index, uint32_t fingerprint){
 	std::cout<<"bool CompactedLogarithmicDynamicCuckooFilter::insertItem(int level, size_t index, uint32_t fingerprint)"<<std::endl;
 	int level = CFId.length();
 	std::cout<<"fingerprint: "<<fingerprint<<endl;
 	std::cout<<"index: "<<index<<endl;
 	std::cout<<"insertItem in:"<<CFId<<std::endl;
+	int flag = 0;//不分裂
 	//这里传入的指纹长度是完整的，在插入的时候才会进行截取
 	// uint32_t uCFId = fingerprint >> (fingerprint_size-level);
 	// std::string CFId = uint32ToString(uCFId,level);
 	if(CFMap.find(CFId) == CFMap.end()){
 		std::cout<<"cannot find CFId:"<<CFId<<std::endl;
-		return false;
+		return 0;
 	}
 	if(CFMap[CFId]->is_full == true){
 		//分裂
 		std::cout<<"CFId:"<<CFId<<" is full"<<std::endl;
 		append(CFId);
+		flag = 1;
 		// if(CFMap["1"] == nullptr){
 		// 	std::cout<<"testnullptr"<<endl;
 		// }
@@ -89,11 +91,12 @@ bool CompactedLogarithmicDynamicCuckooFilter::insertItem(std::string CFId, size_
 		std::cout<<"handle failure"<<std::endl;
 		std::string next =  uint32ToString(victim.fingerprint >> (CFMap[CFId]->exact_fingerprint_size-1),1);
 		append(CFId);
+		flag = 1;
 		CFId = CFId + next;
 		insertItem(CFId,victim.index,victim.fingerprint);
 	}
 
-	return true;
+	return flag;
 }
 std::string CompactedLogarithmicDynamicCuckooFilter::getCFId(const char* item, uint32_t& fingerprint, size_t& index){
 	std::string  value = HashFunc::sha256(item);

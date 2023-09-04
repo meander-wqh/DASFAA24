@@ -197,14 +197,14 @@ void Server::UpdateiTSet(unsigned char* ind, size_t ind_len, unsigned char* valu
   }
 }
 
-void Server::UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type){
+int Server::UpdateXSet(unsigned char* CFId, size_t CFId_len, uint32_t fingerprint, size_t index, size_t type){
   std::string sCFId((char*)CFId, CFId_len);
   if(type == 1){
     //std::cout<<fingerprint<<std::endl;
-    cldcf->insertItem(sCFId,index,fingerprint);
-  }
-  else{
+    return cldcf->insertItem(sCFId,index,fingerprint);
+  }else{
     cldcf->deleteItem(sCFId,index,fingerprint);
+    return 0;
   }
 }
 

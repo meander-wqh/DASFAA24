@@ -157,11 +157,11 @@ void ocall_query_tokens_entries(const void *Q_w_u_arr,
 }
 
 void ocall_add_update(unsigned char* stag,size_t stag_len,unsigned char* C_id,size_t C_id_len, unsigned char* ind,size_t ind_len,
-unsigned char* C_stag,size_t C_stag_len,uint32_t fingerprint, size_t index,unsigned char* CFId,size_t CFId_len){
+unsigned char* C_stag,size_t C_stag_len,uint32_t fingerprint, size_t index,unsigned char* CFId,size_t CFId_len,int* flag, size_t int_len){
 	//std::cout<<fingerprint<<std::endl;
 	myServer->UpdateTSet(stag,stag_len,C_id,C_id_len);
 	myServer->UpdateiTSet(ind,ind_len,C_stag,C_stag_len,1);
-	myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,1);
+	*flag = myServer->UpdateXSet(CFId,CFId_len,fingerprint,index,1);
 }
 
 void ocall_del_update(unsigned char* stag,size_t stag_len,unsigned char* stag_inverse,size_t stag_inverse_len, unsigned char* ind,size_t ind_len,
@@ -269,59 +269,71 @@ int main()
 
 	/**********************更新数据******************/
 
-	// std::ifstream file("./dataset/Email-Enron");
+	std::ifstream file("./dataset/Gowalla");
+	// std::ifstream file("./dataset/Gowalla");
 
-	// // 检查文件是否成功打开
-    // if (!file.is_open()) {
-    //     std::cerr << "无法打开文件" << std::endl;
-    //     return 1;
-    // }
-
-	// // 逐行读取文件
-    // std::string line;
-	// int number = 0;
-    // while (std::getline(file, line)) {
-    //     // 使用字符串流将每行分割成元素
-    //     std::istringstream iss(line);
-    //     std::string item;
-    //     std::vector<std::string> items;
-
-    //     while (iss >> item) {
-    //         items.push_back(item);
-    //     }
-	// 	std::string sw = "friend:"+ items[0];
-	// 	std::string sid = items[1];
-	// 	const char* w = sw.c_str();
-	// 	size_t w_len = sw.length();
-	// 	const char* id = sid.c_str();
-	// 	size_t id_len = sid.length();
-	// 	ecall_update_data(eid,w, w_len, id, id_len, 1);
-	// 	number ++;
-    // }
-	// std::cout<<"number:"<<number<<std::endl;
-    // // 关闭文件
-    // file.close();
-
-	// std::string query_str = "friend:1&friend:5";
-	// ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
-	
-
-	/****************************test******************************/
-	//测试Stark
-	std::string input = "Stark";
-	std::vector<std::string> tokens;
-	for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
-        std::string substring = input.substr(i, FuzzyCut);
-		std::cout<<substring<<std::endl;
-        tokens.push_back(substring);
+	// 检查文件是否成功打开
+    if (!file.is_open()) {
+        std::cerr << "无法打开文件" << std::endl;
+        return 1;
     }
-	std::string sid = "1001";
-	for(int i = 0;i < tokens.size();i++){
-		ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
-	}
 
-	std::string searchinput = "tark";
-	ecall_Conjunctive_Fuzzy_Social_Search(eid,(char*)searchinput.c_str());
+	// 逐行读取文件
+    std::string line;
+	int number = 0;
+    while (std::getline(file, line)) {
+        // 使用字符串流将每行分割成元素
+        std::istringstream iss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (iss >> item) {
+            items.push_back(item);
+        }
+		std::string sw = "friend:"+ items[0];
+		std::string sid = items[1];
+		const char* w = sw.c_str();
+		size_t w_len = sw.length();
+		const char* id = sid.c_str();
+		size_t id_len = sid.length();
+		ecall_update_data(eid,w, w_len, id, id_len, 1);
+		number ++;
+    }
+	std::cout<<"number:"<<number<<std::endl;
+    // 关闭文件
+    file.close();
+
+	std::string query_str = "friend:1&friend:5";
+
+
+	uint64_t start_time =  timeSinceEpochMillisec();
+	ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
+	uint64_t end_time =  timeSinceEpochMillisec();
+	
+	std::cout << "********Time for search********" << std::endl;
+    std::cout << "Total time: " <<end_time - start_time << " ms" << std::endl;
+
+	//查看MostCFs
+	int MostCFs = 0;
+	ecall_get_MostCFs(eid,&MostCFs,sizeof(MostCFs));
+	std::cout<<MostCFs<<std::endl;
+	
+	/****************************test******************************/
+	// //测试Stark
+	// std::string input = "Stark";
+	// std::vector<std::string> tokens;
+	// for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
+    //     std::string substring = input.substr(i, FuzzyCut);
+	// 	std::cout<<substring<<std::endl;
+    //     tokens.push_back(substring);
+    // }
+	// std::string sid = "1001";
+	// for(int i = 0;i < tokens.size();i++){
+	// 	ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
+	// }
+
+	// std::string searchinput = "tark";
+	// ecall_Conjunctive_Fuzzy_Social_Search(eid,(char*)searchinput.c_str());
 
 
 	// //测试Update

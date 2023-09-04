@@ -47,6 +47,7 @@ int single_capacity = 0;
 
 
 std::vector<std::string> d; //被删文件ID列表
+int MostCFs = 30;
 
 /*** setup */
 // void ecall_init(unsigned char *keyF, size_t len){ 
@@ -89,6 +90,10 @@ void ecall_init(unsigned char key_array[3][16]){
 		//cout<<"fingerprint out of range!!!"<<endl;
 		fingerprint_size = 16;
 	}
+    int byteperbucket = (fingerprint_size*4+7)>>3;
+    
+
+    MostCFs = 60*1024*1024*0.9 / (single_table_length*byteperbucket);
 
     //init cf_tree
     cf_tree = new LinkTree();
@@ -463,6 +468,8 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
         Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
         //ocall_print_int(fingerprint);
         //Send to Server
+        //这里需要传回来一个分裂信息
+        int flag = 0;
         ocall_add_update(
             stag,ENTRY_HASH_KEY_LEN_128,
             C_id,ENTRY_HASH_KEY_LEN_128,
@@ -470,8 +477,12 @@ void ecall_update_data(const char* w, size_t w_len, const char* id, size_t id_le
             C_stag,ENTRY_HASH_KEY_LEN_128,
             fingerprint,
             index,
-            (unsigned char*)CFId.c_str(),CFId.length()
+            (unsigned char*)CFId.c_str(),CFId.length(),
+            &flag,sizeof(flag)
         );
+        if(flag == 1){
+            cf_tree->append(CFId);
+        }
     }else{
         unsigned char stag_inverse[ENTRY_HASH_KEY_LEN_128];
         hash_SHA128(K_T, (sw+std::to_string(UpdateCnt[sw])).c_str() , (sw+std::to_string(UpdateCnt[sw])).length(), stag_inverse);
@@ -550,6 +561,7 @@ void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t
         Hashxor(PatchValue,tempF_2,ENTRY_HASH_KEY_LEN_128,C_stag);
         //ocall_print_int(fingerprint);
         //Send to Server
+        int flag = 0;
         ocall_add_update(
             stag,ENTRY_HASH_KEY_LEN_128,
             C_id,ENTRY_HASH_KEY_LEN_128,
@@ -557,8 +569,12 @@ void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t
             C_stag,ENTRY_HASH_KEY_LEN_128,
             fingerprint,
             index,
-            (unsigned char*)CFId.c_str(),CFId.length()
+            (unsigned char*)CFId.c_str(),CFId.length(),
+            &flag,sizeof(flag)
         );
+        if(flag == 1){
+            cf_tree->append(CFId);
+        }
     }else{
         unsigned char stag_inverse[ENTRY_HASH_KEY_LEN_128];
         hash_SHA128(K_T, (sw+std::to_string(UpdateCnt[sw])).c_str() , (sw+std::to_string(UpdateCnt[sw])).length(), stag_inverse);
@@ -591,6 +607,10 @@ void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t
             (unsigned char*)CFId.c_str(),CFId.length()
         );
     }
+}
+
+void ecall_get_MostCFs(int* test, size_t int_size){
+    *test = MostCFs;
 }
 
 /*** update with op=add */

@@ -17,6 +17,7 @@ enclave {
         public void ecall_Conjunctive_Exact_Social_Search([in,string] char* str);
         public void ecall_Conjunctive_Fuzzy_Social_Search([in,string] char* str);
         public void ecall_test_int(size_t test);
+        public void ecall_get_MostCFs([out,count = int_size]int* test, size_t int_size);
     };
 
     untrusted {
@@ -49,7 +50,8 @@ enclave {
             [in,size=C_stag_len]unsigned char* C_stag,size_t C_stag_len,
             uint32_t fingerprint,
             size_t index,
-            [in,size=CFId_len]unsigned char* CFId,size_t CFId_len
+            [in,size=CFId_len]unsigned char* CFId,size_t CFId_len,
+            [out,count = int_len]int* flag, size_t int_len
         );
         void ocall_del_update(
             [in,size=stag_len]unsigned char* stag,size_t stag_len,

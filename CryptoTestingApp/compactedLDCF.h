@@ -47,7 +47,7 @@ public:
 
 	//insert & query & delete functions
 	bool insertItem(const char* item);
-	bool insertItem(std::string CFId, size_t index, uint32_t fingerprint);
+	int insertItem(std::string CFId, size_t index, uint32_t fingerprint);
 	// CuckooFilter* getChild0CF(CuckooFilter* curCF);
 	// CuckooFilter* getChild1CF(CuckooFilter* curCF);
 	//bool queryItem(const char* item);

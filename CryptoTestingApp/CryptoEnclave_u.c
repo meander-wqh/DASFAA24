@@ -63,6 +63,20 @@ typedef struct ms_ecall_test_int_t {
 	size_t ms_test;
 } ms_ecall_test_int_t;
 
+typedef struct ms_ecall_get_MostCFs_t {
+	int* ms_test;
+	size_t ms_int_size;
+} ms_ecall_get_MostCFs_t;
+
+typedef struct ms_sl_init_switchless_t {
+	sgx_status_t ms_retval;
+	void* ms_sl_data;
+} ms_sl_init_switchless_t;
+
+typedef struct ms_sl_run_switchless_tworker_t {
+	sgx_status_t ms_retval;
+} ms_sl_run_switchless_tworker_t;
+
 typedef struct ms_ocall_test2_t {
 	char* ms_encrypted_content;
 	size_t ms_length_content;
@@ -132,6 +146,8 @@ typedef struct ms_ocall_add_update_t {
 	size_t ms_index;
 	unsigned char* ms_CFId;
 	size_t ms_CFId_len;
+	int* ms_flag;
+	size_t ms_int_len;
 } ms_ocall_add_update_t;
 
 typedef struct ms_ocall_del_update_t {
@@ -296,7 +312,7 @@ static sgx_status_t SGX_CDECL CryptoEnclave_ocall_query_tokens_entries(void* pms
 static sgx_status_t SGX_CDECL CryptoEnclave_ocall_add_update(void* pms)
 {
 	ms_ocall_add_update_t* ms = SGX_CAST(ms_ocall_add_update_t*, pms);
-	ocall_add_update(ms->ms_stag, ms->ms_stag_len, ms->ms_C_id, ms->ms_C_id_len, ms->ms_ind, ms->ms_ind_len, ms->ms_C_stag, ms->ms_C_stag_len, ms->ms_fingerprint, ms->ms_index, ms->ms_CFId, ms->ms_CFId_len);
+	ocall_add_update(ms->ms_stag, ms->ms_stag_len, ms->ms_C_id, ms->ms_C_id_len, ms->ms_ind, ms->ms_ind_len, ms->ms_C_stag, ms->ms_C_stag_len, ms->ms_fingerprint, ms->ms_index, ms->ms_CFId, ms->ms_CFId_len, ms->ms_flag, ms->ms_int_len);
 
 	return SGX_SUCCESS;
 }
@@ -538,7 +554,7 @@ sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* s
 	ms_ecall_Conjunctive_Exact_Social_Search_t ms;
 	ms.ms_str = str;
 	ms.ms_str_len = str ? strlen(str) + 1 : 0;
-	status = sgx_ecall(eid, 8, &ocall_table_CryptoEnclave, &ms);
+	status = sgx_ecall_switchless(eid, 8, &ocall_table_CryptoEnclave, &ms);
 	return status;
 }
 
@@ -558,6 +574,35 @@ sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test)
 	ms_ecall_test_int_t ms;
 	ms.ms_test = test;
 	status = sgx_ecall(eid, 10, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_get_MostCFs(sgx_enclave_id_t eid, int* test, size_t int_size)
+{
+	sgx_status_t status;
+	ms_ecall_get_MostCFs_t ms;
+	ms.ms_test = test;
+	ms.ms_int_size = int_size;
+	status = sgx_ecall(eid, 11, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t sl_init_switchless(sgx_enclave_id_t eid, sgx_status_t* retval, void* sl_data)
+{
+	sgx_status_t status;
+	ms_sl_init_switchless_t ms;
+	ms.ms_sl_data = sl_data;
+	status = sgx_ecall(eid, 12, &ocall_table_CryptoEnclave, &ms);
+	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
+	return status;
+}
+
+sgx_status_t sl_run_switchless_tworker(sgx_enclave_id_t eid, sgx_status_t* retval)
+{
+	sgx_status_t status;
+	ms_sl_run_switchless_tworker_t ms;
+	status = sgx_ecall(eid, 13, &ocall_table_CryptoEnclave, &ms);
+	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
 	return status;
 }
 

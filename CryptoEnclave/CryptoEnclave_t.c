@@ -89,6 +89,20 @@ typedef struct ms_ecall_test_int_t {
 	size_t ms_test;
 } ms_ecall_test_int_t;
 
+typedef struct ms_ecall_get_MostCFs_t {
+	int* ms_test;
+	size_t ms_int_size;
+} ms_ecall_get_MostCFs_t;
+
+typedef struct ms_sl_init_switchless_t {
+	sgx_status_t ms_retval;
+	void* ms_sl_data;
+} ms_sl_init_switchless_t;
+
+typedef struct ms_sl_run_switchless_tworker_t {
+	sgx_status_t ms_retval;
+} ms_sl_run_switchless_tworker_t;
+
 typedef struct ms_ocall_test2_t {
 	char* ms_encrypted_content;
 	size_t ms_length_content;
@@ -158,6 +172,8 @@ typedef struct ms_ocall_add_update_t {
 	size_t ms_index;
 	unsigned char* ms_CFId;
 	size_t ms_CFId_len;
+	int* ms_flag;
+	size_t ms_int_len;
 } ms_ocall_add_update_t;
 
 typedef struct ms_ocall_del_update_t {
@@ -814,11 +830,101 @@ static sgx_status_t SGX_CDECL sgx_ecall_test_int(void* pms)
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_get_MostCFs(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_ecall_get_MostCFs_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_ecall_get_MostCFs_t* ms = SGX_CAST(ms_ecall_get_MostCFs_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	int* _tmp_test = ms->ms_test;
+	size_t _tmp_int_size = ms->ms_int_size;
+	size_t _len_test = _tmp_int_size * sizeof(int);
+	int* _in_test = NULL;
+
+	if (sizeof(*_tmp_test) != 0 &&
+		(size_t)_tmp_int_size > (SIZE_MAX / sizeof(*_tmp_test))) {
+		return SGX_ERROR_INVALID_PARAMETER;
+	}
+
+	CHECK_UNIQUE_POINTER(_tmp_test, _len_test);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_test != NULL && _len_test != 0) {
+		if ( _len_test % sizeof(*_tmp_test) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if ((_in_test = (int*)malloc(_len_test)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_test, 0, _len_test);
+	}
+
+	ecall_get_MostCFs(_in_test, _tmp_int_size);
+	if (_in_test) {
+		if (memcpy_s(_tmp_test, _len_test, _in_test, _len_test)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_test) free(_in_test);
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_sl_init_switchless(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_sl_init_switchless_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_sl_init_switchless_t* ms = SGX_CAST(ms_sl_init_switchless_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	void* _tmp_sl_data = ms->ms_sl_data;
+
+
+
+	ms->ms_retval = sl_init_switchless(_tmp_sl_data);
+
+
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_sl_run_switchless_tworker(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_sl_run_switchless_tworker_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_sl_run_switchless_tworker_t* ms = SGX_CAST(ms_sl_run_switchless_tworker_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+
+
+
+	ms->ms_retval = sl_run_switchless_tworker();
+
+
+	return status;
+}
+
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[11];
+	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[14];
 } g_ecall_table = {
-	11,
+	14,
 	{
 		{(void*)(uintptr_t)sgx_ecall_init, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_addDoc, 0, 0},
@@ -828,41 +934,44 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_ecall_hash_test, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_update_data, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_update_data_Fuzzy, 0, 0},
-		{(void*)(uintptr_t)sgx_ecall_Conjunctive_Exact_Social_Search, 0, 0},
+		{(void*)(uintptr_t)sgx_ecall_Conjunctive_Exact_Social_Search, 0, 1},
 		{(void*)(uintptr_t)sgx_ecall_Conjunctive_Fuzzy_Social_Search, 0, 0},
 		{(void*)(uintptr_t)sgx_ecall_test_int, 0, 0},
+		{(void*)(uintptr_t)sgx_ecall_get_MostCFs, 0, 0},
+		{(void*)(uintptr_t)sgx_sl_init_switchless, 0, 0},
+		{(void*)(uintptr_t)sgx_sl_run_switchless_tworker, 0, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[23][11];
+	uint8_t entry_table[23][14];
 } g_dyn_entry_table = {
 	23,
 	{
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 
@@ -1461,7 +1570,7 @@ sgx_status_t SGX_CDECL ocall_query_tokens_entries(const void* Q_w_u_arr, const v
 	return status;
 }
 
-sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len)
+sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len, int* flag, size_t int_len)
 {
 	sgx_status_t status = SGX_SUCCESS;
 	size_t _len_stag = stag_len;
@@ -1469,17 +1578,20 @@ sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, un
 	size_t _len_ind = ind_len;
 	size_t _len_C_stag = C_stag_len;
 	size_t _len_CFId = CFId_len;
+	size_t _len_flag = int_len * sizeof(int);
 
 	ms_ocall_add_update_t* ms = NULL;
 	size_t ocalloc_size = sizeof(ms_ocall_add_update_t);
 	void *__tmp = NULL;
 
+	void *__tmp_flag = NULL;
 
 	CHECK_ENCLAVE_POINTER(stag, _len_stag);
 	CHECK_ENCLAVE_POINTER(C_id, _len_C_id);
 	CHECK_ENCLAVE_POINTER(ind, _len_ind);
 	CHECK_ENCLAVE_POINTER(C_stag, _len_C_stag);
 	CHECK_ENCLAVE_POINTER(CFId, _len_CFId);
+	CHECK_ENCLAVE_POINTER(flag, _len_flag);
 
 	if (ADD_ASSIGN_OVERFLOW(ocalloc_size, (stag != NULL) ? _len_stag : 0))
 		return SGX_ERROR_INVALID_PARAMETER;
@@ -1490,6 +1602,8 @@ sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, un
 	if (ADD_ASSIGN_OVERFLOW(ocalloc_size, (C_stag != NULL) ? _len_C_stag : 0))
 		return SGX_ERROR_INVALID_PARAMETER;
 	if (ADD_ASSIGN_OVERFLOW(ocalloc_size, (CFId != NULL) ? _len_CFId : 0))
+		return SGX_ERROR_INVALID_PARAMETER;
+	if (ADD_ASSIGN_OVERFLOW(ocalloc_size, (flag != NULL) ? _len_flag : 0))
 		return SGX_ERROR_INVALID_PARAMETER;
 
 	__tmp = sgx_ocalloc(ocalloc_size);
@@ -1588,9 +1702,30 @@ sgx_status_t SGX_CDECL ocall_add_update(unsigned char* stag, size_t stag_len, un
 	}
 	
 	ms->ms_CFId_len = CFId_len;
+	if (flag != NULL) {
+		ms->ms_flag = (int*)__tmp;
+		__tmp_flag = __tmp;
+		if (_len_flag % sizeof(*flag) != 0) {
+			sgx_ocfree();
+			return SGX_ERROR_INVALID_PARAMETER;
+		}
+		memset(__tmp_flag, 0, _len_flag);
+		__tmp = (void *)((size_t)__tmp + _len_flag);
+		ocalloc_size -= _len_flag;
+	} else {
+		ms->ms_flag = NULL;
+	}
+	
+	ms->ms_int_len = int_len;
 	status = sgx_ocall(8, ms);
 
 	if (status == SGX_SUCCESS) {
+		if (flag) {
+			if (memcpy_s((void*)flag, _len_flag, __tmp_flag, _len_flag)) {
+				sgx_ocfree();
+				return SGX_ERROR_UNEXPECTED;
+			}
+		}
 	}
 	sgx_ocfree();
 	return status;
@@ -1792,7 +1927,7 @@ sgx_status_t SGX_CDECL ocall_Query_TSet(unsigned char* stag, size_t stag_len, un
 	}
 	
 	ms->ms_value_len = value_len;
-	status = sgx_ocall(10, ms);
+	status = sgx_ocall_switchless(10, ms);
 
 	if (status == SGX_SUCCESS) {
 		if (value) {
@@ -1867,7 +2002,7 @@ sgx_status_t SGX_CDECL ocall_Query_iTSet(unsigned char* ind, size_t ind_len, uns
 	}
 	
 	ms->ms_value_len = value_len;
-	status = sgx_ocall(11, ms);
+	status = sgx_ocall_switchless(11, ms);
 
 	if (status == SGX_SUCCESS) {
 		if (value) {
@@ -1943,7 +2078,7 @@ sgx_status_t SGX_CDECL ocall_Get_CF(unsigned char* CFId, size_t CFId_len, uint32
 	
 	ms->ms_fingerprint_len = fingerprint_len;
 	ms->ms_len = len;
-	status = sgx_ocall(12, ms);
+	status = sgx_ocall_switchless(12, ms);
 
 	if (status == SGX_SUCCESS) {
 		if (fingerprint) {
@@ -2039,7 +2174,7 @@ sgx_status_t SGX_CDECL ocall_send_stokenList(unsigned char* StokenList, size_t S
 	}
 	
 	ms->ms_int_len = int_len;
-	status = sgx_ocall(13, ms);
+	status = sgx_ocall_switchless(13, ms);
 
 	if (status == SGX_SUCCESS) {
 		if (ValList) {

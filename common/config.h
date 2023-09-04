@@ -9,8 +9,7 @@
 
 #define FALSE_POSITIVE  0.0005
 #define ITEM_NUMBER  10000000
-#define EXP_BLOCK_NUM 10
-#define MostCFs 4
+#define EXP_BLOCK_NUM 100
 #define FuzzyCut 3
 
 #endif

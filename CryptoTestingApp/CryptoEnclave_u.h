@@ -50,7 +50,7 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_query_tokens_entries, (const void* Q_w_
 #endif
 #ifndef OCALL_ADD_UPDATE_DEFINED__
 #define OCALL_ADD_UPDATE_DEFINED__
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_add_update, (unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len));
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_add_update, (unsigned char* stag, size_t stag_len, unsigned char* C_id, size_t C_id_len, unsigned char* ind, size_t ind_len, unsigned char* C_stag, size_t C_stag_len, uint32_t fingerprint, size_t index, unsigned char* CFId, size_t CFId_len, int* flag, size_t int_len));
 #endif
 #ifndef OCALL_DEL_UPDATE_DEFINED__
 #define OCALL_DEL_UPDATE_DEFINED__
@@ -120,6 +120,9 @@ sgx_status_t ecall_update_data_Fuzzy(sgx_enclave_id_t eid, const char* w, size_t
 sgx_status_t ecall_Conjunctive_Exact_Social_Search(sgx_enclave_id_t eid, char* str);
 sgx_status_t ecall_Conjunctive_Fuzzy_Social_Search(sgx_enclave_id_t eid, char* str);
 sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test);
+sgx_status_t ecall_get_MostCFs(sgx_enclave_id_t eid, int* test, size_t int_size);
+sgx_status_t sl_init_switchless(sgx_enclave_id_t eid, sgx_status_t* retval, void* sl_data);
+sgx_status_t sl_run_switchless_tworker(sgx_enclave_id_t eid, sgx_status_t* retval);
 
 #ifdef __cplusplus
 }
