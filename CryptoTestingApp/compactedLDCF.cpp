@@ -59,11 +59,11 @@ CompactedLogarithmicDynamicCuckooFilter::~CompactedLogarithmicDynamicCuckooFilte
 
 //插入CF的层级，候选index，指纹, 层级代表id的位数，第0层为空字符串，第1层为"0"或者"1"
 int CompactedLogarithmicDynamicCuckooFilter::insertItem(std::string CFId, size_t index, uint32_t fingerprint){
-	std::cout<<"bool CompactedLogarithmicDynamicCuckooFilter::insertItem(int level, size_t index, uint32_t fingerprint)"<<std::endl;
+	//std::cout<<"bool CompactedLogarithmicDynamicCuckooFilter::insertItem(int level, size_t index, uint32_t fingerprint)"<<std::endl;
 	int level = CFId.length();
-	std::cout<<"fingerprint: "<<fingerprint<<endl;
-	std::cout<<"index: "<<index<<endl;
-	std::cout<<"insertItem in:"<<CFId<<std::endl;
+	// std::cout<<"fingerprint: "<<fingerprint<<endl;
+	// std::cout<<"index: "<<index<<endl;
+	// std::cout<<"insertItem in:"<<CFId<<std::endl;
 	int flag = 0;//不分裂
 	//这里传入的指纹长度是完整的，在插入的时候才会进行截取
 	// uint32_t uCFId = fingerprint >> (fingerprint_size-level);
@@ -321,4 +321,8 @@ uint64_t CompactedLogarithmicDynamicCuckooFilter::upperpower2(uint64_t x) {
   x |= x >> 32;
   x++;
   return x;
+}
+
+int CompactedLogarithmicDynamicCuckooFilter::GetCFNumber(){
+	return CFMap.size();
 }

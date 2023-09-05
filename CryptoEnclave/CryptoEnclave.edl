@@ -18,6 +18,7 @@ enclave {
         public void ecall_Conjunctive_Fuzzy_Social_Search([in,string] char* str);
         public void ecall_test_int(size_t test);
         public void ecall_get_MostCFs([out,count = int_size]int* test, size_t int_size);
+        public void ecall_get_ecall_number([out,count = int_size]int* test, size_t int_size);
     };
 
     untrusted {

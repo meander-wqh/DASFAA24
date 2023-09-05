@@ -110,7 +110,7 @@ bool CuckooFilter::insertItem(size_t index, uint32_t fingerprint, bool kickout, 
 }
 
 bool CuckooFilter::insertItem(size_t index, uint32_t fingerprint, Victim &victim){
-	std::cout<<"bool CuckooFilter::insertItem(size_t index, uint32_t fingerprint, Victim &victim)"<<std::endl;
+	//std::cout<<"bool CuckooFilter::insertItem(size_t index, uint32_t fingerprint, Victim &victim)"<<std::endl;
 	size_t alt_index;
 	size_t count;
 	for(count = 0; count<MaxNumKicks; count++){

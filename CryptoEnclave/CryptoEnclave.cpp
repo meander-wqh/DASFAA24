@@ -48,6 +48,7 @@ int single_capacity = 0;
 
 std::vector<std::string> d; //被删文件ID列表
 int MostCFs = 30;
+int ecall_number = 0;
 
 /*** setup */
 // void ecall_init(unsigned char *keyF, size_t len){ 
@@ -132,6 +133,7 @@ void ecall_hash_test(const char* data, size_t len){
 }
 
 void ecall_Conjunctive_Exact_Social_Search(char* str){
+    ecall_number ++;
     std::string sResList = "";
     std::string input(str);
     std::vector<std::string> tokens;//w1...wn
@@ -611,6 +613,10 @@ void ecall_update_data_Fuzzy(const char* w, size_t w_len, const char* id, size_t
 
 void ecall_get_MostCFs(int* test, size_t int_size){
     *test = MostCFs;
+}
+
+void ecall_get_ecall_number(int* test, size_t int_size){
+    *test = ecall_number;
 }
 
 /*** update with op=add */

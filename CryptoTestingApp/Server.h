@@ -37,6 +37,10 @@ class Server{
         std::string QueryTSet(std::string key);
         std::string QueryiTSet(std::string key);
         CuckooFilter* GetCF(std::string CFId);
+        int GetCFNumber();
+        int GetXSetItemNumber();
+        float GetXSetMemory();
+        float GetTSetMemory();
 
         
     private:

@@ -226,3 +226,20 @@ std::string Server::QueryiTSet(std::string key){
 CuckooFilter* Server::GetCF(std::string CFId){
   return cldcf->GetCF(CFId);
 }
+
+int Server::GetCFNumber(){
+  return cldcf->GetCFNumber();
+}
+
+int Server::GetXSetItemNumber(){
+  return cldcf->counter;
+}
+
+float Server::GetXSetMemory(){
+  return cldcf->size_in_mb();
+}
+
+float Server::GetTSetMemory(){
+  int B = TSet.size() * 32 + iTSet.size()*32;
+  return B/1024/1024;
+}

@@ -82,6 +82,8 @@ public:
 	std::string getCFId(uint32_t fingerprint);
 
 	CuckooFilter* GetCF(std::string CFId);
+
+	int GetCFNumber();
 	
 	//void info();
 	//std::string uint32ToString(uint32_t number, size_t numBits);

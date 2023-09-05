@@ -5,8 +5,6 @@
 
 #include "sgx_urts.h"
 #include "CryptoEnclave_u.h"
-
-#include "../common/data_type.h"
 #include "Server.h"
 #include "Client.h"
 #include "Utils.h"
@@ -33,6 +31,8 @@ int del_no = (int)0;//10000;//10000;
 
 int capacity = ITEM_NUMBER;
 int single_table_length = upperpower2(capacity/4.0/EXP_BLOCK_NUM);
+
+int ocall_number = 0;
 
 /* 	Note 1: Enclave only recognises direct pointer with count*size, where count is the number of elements in the array, and size is the size of each element
 		other further pointers of pointers should have fixed max length of array to eliminate ambiguity to Enclave (by using pointer [max_buf]).
@@ -174,6 +174,7 @@ unsigned char* ind_inverse,size_t ind_inverse_len,uint32_t fingerprint, size_t i
 }
 
 void ocall_send_stokenList(unsigned char* StokenList,size_t StokenList_len,int StokenListSize,unsigned char* ValList,size_t ValList_len,int* ValListSize, size_t int_len){
+	ocall_number++;
 	//std::cout<<StokenListSize<<std::endl;
 	unsigned char* p = StokenList;
 	std::string C_id = "";
@@ -198,6 +199,7 @@ void ocall_send_stokenList(unsigned char* StokenList,size_t StokenList_len,int S
 }
 
 void ocall_Get_CF(unsigned char* CFId, size_t CFId_len,uint32_t* fingerprint, size_t fingerprint_len, size_t len){
+	ocall_number++;
 	std::string sCFId((char*)CFId,CFId_len);
 	CuckooFilter* CF = myServer->GetCF(sCFId);
 	int index = 0;
@@ -222,6 +224,27 @@ void ocall_Get_Res(char* res,size_t res_len){
 	for(int i=0;i<res_len;i++){
 		std::cout<<res[i]<<std::endl;
 	}
+}
+
+std::vector<std::string> GetFuzzyTokens(std::string input){
+	std::vector<std::string> tokens;
+	for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
+        std::string substring = input.substr(i, FuzzyCut);
+		std::cout<<substring<<std::endl;
+        tokens.push_back(substring);
+    }
+	return tokens;
+}
+
+int GetFileLine(const char* path){
+	int lineCount = 0;
+	std::ifstream file(path);
+	std::string line;
+	while (std::getline(file, line)) {
+        lineCount++;
+    }
+	file.close();
+	return lineCount;
 }
 
 //main func
@@ -267,9 +290,11 @@ int main()
 	ecall_init(eid,key_array);
 	std::cout<<"SGX get K_T, K_Z and K_X."<<std::endl;
 
-	/**********************更新数据******************/
+	/*******************更新数据******************/
 
-	std::ifstream file("./dataset/Gowalla");
+	const char* path = "./dataset/Email-Enron-new.txt";
+
+	std::ifstream file(path);
 	// std::ifstream file("./dataset/Gowalla");
 
 	// 检查文件是否成功打开
@@ -277,41 +302,85 @@ int main()
         std::cerr << "无法打开文件" << std::endl;
         return 1;
     }
+	int FileLine = GetFileLine(path);
+	double ratio = 0.2;
 
 	// 逐行读取文件
     std::string line;
-	int number = 0;
+	uint64_t set_up_start_time =  timeSinceEpochMillisec();
+	int fakeid = 0;
+	int lineNumber = 0;
     while (std::getline(file, line)) {
-        // 使用字符串流将每行分割成元素
+		if(lineNumber>=FileLine*ratio){
+			break;
+		}
+        // 使用字符串流将每行分割成元素item
         std::istringstream iss(line);
         std::string item;
         std::vector<std::string> items;
-
         while (iss >> item) {
             items.push_back(item);
         }
 		std::string sw = "friend:"+ items[0];
 		std::string sid = items[1];
+		std::string sname1 = items[2];
+		std::string sname2 = items[3];
+		std::string sname = sname1+sname2;
+
+		//Exact item
 		const char* w = sw.c_str();
 		size_t w_len = sw.length();
 		const char* id = sid.c_str();
 		size_t id_len = sid.length();
 		ecall_update_data(eid,w, w_len, id, id_len, 1);
-		number ++;
+
+		//Fuzzy item
+		const char* name = sname.c_str();
+		size_t name_len = sname.length();
+		std::vector<std::string> tokens = GetFuzzyTokens(sname);
+		std::stringstream ss;
+		ss<<fakeid;
+		sid = ss.str();
+		fakeid++;
+
+		for(int i = 0;i < tokens.size();i++){
+			ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
+		}
+		lineNumber++;
     }
-	std::cout<<"number:"<<number<<std::endl;
-    // 关闭文件
-    file.close();
+	file.close();
+	uint64_t set_up_end_time =  timeSinceEpochMillisec();
 
-	std::string query_str = "friend:1&friend:5";
+	std::cout << "********Time for setup********" << std::endl;
+    std::cout << "Total time: " <<set_up_end_time - set_up_start_time << " ms" << std::endl;
 
+	// 检查XSet，TSet状态
+	int CFNumber = myServer->GetCFNumber();
+	int XSetItemNumber = myServer->GetXSetItemNumber();
+	float XSetMemory = myServer->GetXSetMemory();
+	float TSetMemory = myServer->GetTSetMemory();
+	std::cout << "CFNumber: " << CFNumber << std::endl;
+	std::cout << "XSetItemNumber: " << XSetItemNumber <<std::endl;
+	std::cout << "XSetMemory: " << XSetMemory <<std::endl;
+	std::cout << "TSetMemory: " << TSetMemory <<std::endl;
 
-	uint64_t start_time =  timeSinceEpochMillisec();
+	uint64_t start_time;
+	uint64_t end_time;
+
+	/*******************查询******************/
+	std::string query_str = "friend:200&friend:136";
+	start_time =  timeSinceEpochMillisec();
 	ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
-	uint64_t end_time =  timeSinceEpochMillisec();
+	end_time =  timeSinceEpochMillisec();
 	
 	std::cout << "********Time for search********" << std::endl;
     std::cout << "Total time: " <<end_time - start_time << " ms" << std::endl;
+
+	std::cout << "ocall_number: "<<ocall_number<<std::endl;
+
+	int ecall_number;
+	ecall_get_ecall_number(eid,&ecall_number,sizeof(ecall_number));
+	std::cout << "ecall_number: "<<ecall_number<<std::endl;
 
 	//查看MostCFs
 	int MostCFs = 0;
