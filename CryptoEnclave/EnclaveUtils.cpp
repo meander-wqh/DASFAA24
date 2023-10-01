@@ -17,7 +17,7 @@ void print_bytes(uint8_t *ptr, uint32_t len) {
 }
 
 void generateIF(const char* item, size_t &index, uint32_t &fingerprint, int fingerprint_size, int single_table_length){
-	std::string  value = SGXHashFunc::sha256(item);
+	std::string value = SGXHashFunc::sha256(item);
 	uint64_t hv = *((uint64_t*) value.c_str());
 	index = ((uint32_t) (hv >> 32)) % single_table_length;
 	fingerprint = (uint32_t) (hv & 0xFFFFFFFF);

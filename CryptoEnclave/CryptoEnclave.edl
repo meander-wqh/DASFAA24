@@ -19,9 +19,15 @@ enclave {
         public void ecall_test_int(size_t test);
         public void ecall_get_MostCFs([out,count = int_size]int* test, size_t int_size);
         public void ecall_get_ecall_number([out,count = int_size]int* test, size_t int_size);
+        public void ecall_clear_CFs();
+
     };
 
     untrusted {
+        void ocall_start_time();
+        void ocall_end_time();
+        void ocall_start_time_test();
+        void ocall_end_time_test();
         void ocall_test2([in, size = length_content] char* encrypted_content, size_t length_content);
         void ocall_test([in, count = 1] int* mint,[in,size = 1] char* mchar,[in,size=len] char* mstring,int len);
         void ocall_transfer_encrypted_entries([in, count= pair_count, size=rand_size] const void *t1_u_arr, 

@@ -35,7 +35,7 @@ unsigned char K_X[ENC_KEY_SIZE] = {0};
 
 std::unordered_map<std::string, int> ST; //关键字与对应文件次数哈希表
 std::unordered_map<std::string, std::vector<std::string>> D; //关键字与被删文件ID哈希表
-std::unordered_map<std::string, int> UpdateCnt;
+std::unordered_map<std::string, uint16_t> UpdateCnt;
 std::unordered_map<std::string, CuckooFilter*> CFs;
 std::queue<std::string> CFQueue;
 
@@ -94,7 +94,7 @@ void ecall_init(unsigned char key_array[3][16]){
     int byteperbucket = (fingerprint_size*4+7)>>3;
     
 
-    MostCFs = 60*1024*1024*0.9 / (single_table_length*byteperbucket);
+    MostCFs = 40*0.18*1024*1024*0.9 / (single_table_length*byteperbucket);
 
     //init cf_tree
     cf_tree = new LinkTree();
@@ -133,6 +133,8 @@ void ecall_hash_test(const char* data, size_t len){
 }
 
 void ecall_Conjunctive_Exact_Social_Search(char* str){
+    // ocall_start_time_test();
+    // ocall_end_time_test();
     ecall_number ++;
     std::string sResList = "";
     std::string input(str);
@@ -209,19 +211,20 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
     // ocall_print_int(CidList_max_len);
     //print_bytes(CidList,CidList_max_len);
     for(int j=0;j<CidListSize;j++){
-        int flag = 0;
-        unsigned char Cid[ENTRY_HASH_KEY_LEN_128];
+        int flag = 0;                                                                  
+        unsigned char Cid[ENTRY_HASH_KEY_LEN_128];                       
         unsigned char tempF_2[ENTRY_HASH_KEY_LEN_128];
-        hash_SHA128(K_Z,(unsigned char*)tokens[LeastWIndex].c_str(),tokens[LeastWIndex].length(),tempF_2);
+        hash_SHA128(K_Z,(unsigned char*)tokens[LeastWIndex].c_str(), tokens[LeastWIndex].length(), tempF_2);        
         memcpy(Cid,CidListP,ENTRY_HASH_KEY_LEN_128);
         //print_bytes(Cid,ENTRY_HASH_KEY_LEN_128);
         CidListP+=ENTRY_HASH_KEY_LEN_128;
         unsigned char id[ENTRY_HASH_KEY_LEN_128];
         Hashxor(Cid,tempF_2,ENTRY_HASH_KEY_LEN_128,id);//这里的id是经过填充的
         string sid = DePatch(id);
-        // printf(sid.c_str());
+        //printf(sid.c_str());
         for(int i=0;i<tokens.size();i++){
             if(i != LeastWIndex){
+                ocall_start_time_test();
                 std::string sxtag = tokens[i] + sid;
                 //ocall_print_string(sxtag.c_str());
                 const char* xtag = sxtag.c_str();
@@ -240,12 +243,16 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
                     CFQueue.push(CFId);
                     uint32_t fingerprints[single_table_length*4];
                     //这里single_table_length*4太大了，会导致段错误
+                    //printf("test1");
                     ocall_Get_CF((unsigned char*)CFId.c_str(), CFId.length() ,fingerprints, sizeof(uint32_t), single_table_length*4);
+                    //printf("test2");
+                    //ocall_print_int(CFs.size()); //最多只能存225个？
                     CFs[CFId] = new CuckooFilter(CFId,single_table_length, fingerprint_size, single_capacity, CFId.length());	
                     int index = 0;
                     int notNull = 0;
+                    ocall_start_time();
                     while(index<single_table_length*4){
-                        CFs[CFId]->write(index / 4, index%4 , fingerprints[index]);
+                        CFs[CFId]->write(index / 4, index % 4 , fingerprints[index]);
                         //这里只能取到1个指纹，但应该是两个
                         // if(fingerprints[index] != 0){
                         //     notNull++;
@@ -255,14 +262,17 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
                         // }
                         index++;
                     }
+                    ocall_end_time();
+                    //printf("test3");
                 }
                 CuckooFilter* CF = CFs[CFId];
                 //这里面xtag求出的指纹没有问题
                 if(CF->queryItem(xtag) == false){
                     //printf("not found");
                     flag = 1; //没找到
-                    break;
+                    //break;
                 }
+                ocall_end_time_test();
             }
         }
         if(flag == 0){
@@ -270,7 +280,6 @@ void ecall_Conjunctive_Exact_Social_Search(char* str){
             sResList += "&";
         }
     }
-
 
     for(int i=0;i<stokenList.size();i++){
         delete stokenList[i];
@@ -383,6 +392,7 @@ void ecall_Conjunctive_Fuzzy_Social_Search(char* str){
                 if(CFs.find(CFId) == CFs.end()){
                     if(CFs.size() == MostCFs){
                         delete CFs[CFQueue.front()];
+                        CFs[CFQueue.front()] = NULL;
                         CFs.erase(CFQueue.front());
                         CFQueue.pop();
                     }
@@ -617,7 +627,31 @@ void ecall_get_MostCFs(int* test, size_t int_size){
 
 void ecall_get_ecall_number(int* test, size_t int_size){
     *test = ecall_number;
+    ecall_number = 0;
 }
+
+void ecall_clear_CFs(){
+
+    printf("CFNumber in SGX:");
+    ocall_print_int(CFs.size());
+    auto iter = CFs.begin();
+    while(iter!=CFs.end()){
+        delete iter->second;
+        iter->second = NULL;
+        iter = CFs.erase(iter);
+    }
+    CFs.clear();
+    while(!CFQueue.empty()){
+        CFQueue.pop();
+    }
+}
+
+//
+//
+//
+//
+//
+//
 
 /*** update with op=add */
 void ecall_addDoc(char *doc_id, size_t id_length,char *content,int content_length){

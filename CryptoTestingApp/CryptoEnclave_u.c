@@ -241,6 +241,34 @@ typedef struct ms_sgx_thread_set_multiple_untrusted_events_ocall_t {
 	size_t ms_total;
 } ms_sgx_thread_set_multiple_untrusted_events_ocall_t;
 
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_start_time(void* pms)
+{
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	ocall_start_time();
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_end_time(void* pms)
+{
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	ocall_end_time();
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_start_time_test(void* pms)
+{
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	ocall_start_time_test();
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL CryptoEnclave_ocall_end_time_test(void* pms)
+{
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	ocall_end_time_test();
+	return SGX_SUCCESS;
+}
+
 static sgx_status_t SGX_CDECL CryptoEnclave_ocall_test2(void* pms)
 {
 	ms_ocall_test2_t* ms = SGX_CAST(ms_ocall_test2_t*, pms);
@@ -427,10 +455,14 @@ static sgx_status_t SGX_CDECL CryptoEnclave_sgx_thread_set_multiple_untrusted_ev
 
 static const struct {
 	size_t nr_ocall;
-	void * table[23];
+	void * table[27];
 } ocall_table_CryptoEnclave = {
-	23,
+	27,
 	{
+		(void*)CryptoEnclave_ocall_start_time,
+		(void*)CryptoEnclave_ocall_end_time,
+		(void*)CryptoEnclave_ocall_start_time_test,
+		(void*)CryptoEnclave_ocall_end_time_test,
 		(void*)CryptoEnclave_ocall_test2,
 		(void*)CryptoEnclave_ocall_test,
 		(void*)CryptoEnclave_ocall_transfer_encrypted_entries,
@@ -590,6 +622,13 @@ sgx_status_t ecall_get_ecall_number(sgx_enclave_id_t eid, int* test, size_t int_
 	ms.ms_test = test;
 	ms.ms_int_size = int_size;
 	status = sgx_ecall(eid, 12, &ocall_table_CryptoEnclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_clear_CFs(sgx_enclave_id_t eid)
+{
+	sgx_status_t status;
+	status = sgx_ecall(eid, 13, &ocall_table_CryptoEnclave, NULL);
 	return status;
 }
 

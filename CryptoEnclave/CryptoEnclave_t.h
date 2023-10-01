@@ -28,7 +28,12 @@ void ecall_Conjunctive_Fuzzy_Social_Search(char* str);
 void ecall_test_int(size_t test);
 void ecall_get_MostCFs(int* test, size_t int_size);
 void ecall_get_ecall_number(int* test, size_t int_size);
+void ecall_clear_CFs(void);
 
+sgx_status_t SGX_CDECL ocall_start_time(void);
+sgx_status_t SGX_CDECL ocall_end_time(void);
+sgx_status_t SGX_CDECL ocall_start_time_test(void);
+sgx_status_t SGX_CDECL ocall_end_time_test(void);
 sgx_status_t SGX_CDECL ocall_test2(char* encrypted_content, size_t length_content);
 sgx_status_t SGX_CDECL ocall_test(int* mint, char* mchar, char* mstring, int len);
 sgx_status_t SGX_CDECL ocall_transfer_encrypted_entries(const void* t1_u_arr, const void* t1_v_arr, const void* t2_u_arr, const void* t2_v_arr, int pair_count, int rand_size);

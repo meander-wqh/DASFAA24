@@ -34,6 +34,15 @@ int single_table_length = upperpower2(capacity/4.0/EXP_BLOCK_NUM);
 
 int ocall_number = 0;
 
+uint64_t load_CF_total_time = 0;
+uint64_t load_CF_start_time;
+uint64_t load_CF_end_time;
+
+uint64_t ocall_start_timestamp;
+uint64_t ocall_end_timestamp;
+
+uint64_t maxTimeCost = 0;
+
 /* 	Note 1: Enclave only recognises direct pointer with count*size, where count is the number of elements in the array, and size is the size of each element
 		other further pointers of pointers should have fixed max length of array to eliminate ambiguity to Enclave (by using pointer [max_buf]).
 	Note 2: In outcall, passing pointer [out] can only be modified/changed in the direct .cpp class declaring the ocall function.
@@ -60,6 +69,27 @@ int ocall_number = 0;
 
 Client *myClient; //extern to separate ocall
 Server *myServer; //extern to separate ocall
+
+void ocall_start_time(){
+	load_CF_start_time = timeSinceEpochMillisec();
+}
+
+void ocall_end_time(){
+	load_CF_end_time = timeSinceEpochMillisec();
+	load_CF_total_time += (load_CF_end_time - load_CF_start_time);
+	// std::cout << "Total time: " <<timeSinceEpochMillisec() - timestamp << " ms" << std::endl;
+}
+
+void ocall_start_time_test(){
+	ocall_start_timestamp = timeSinceEpochMillisec();
+}
+
+void ocall_end_time_test(){
+	ocall_end_timestamp = timeSinceEpochMillisec();
+	if(ocall_end_timestamp - ocall_start_timestamp > maxTimeCost){
+		maxTimeCost = ocall_end_timestamp - ocall_start_timestamp;
+	}
+}
 
 void ocall_print_string(const char *str) {
     printf("%s\n", str);
@@ -230,7 +260,7 @@ std::vector<std::string> GetFuzzyTokens(std::string input){
 	std::vector<std::string> tokens;
 	for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
         std::string substring = input.substr(i, FuzzyCut);
-		std::cout<<substring<<std::endl;
+		//std::cout<<substring<<std::endl;
         tokens.push_back(substring);
     }
 	return tokens;
@@ -289,10 +319,13 @@ int main()
 	memcpy(key_array[2],K_X,16);
 	ecall_init(eid,key_array);
 	std::cout<<"SGX get K_T, K_Z and K_X."<<std::endl;
+	long long int mem = 0;
 
 	/*******************更新数据******************/
 
-	const char* path = "./dataset/Email-Enron-new.txt";
+	const char* path = "./dataset/com-orkut.ungraph-1kw.txt";
+	//const char* path = "./dataset/Email-Enron-new.txt";
+	//const char* path = "./dataset/com-orkut.ungraph-200w.txt";
 
 	std::ifstream file(path);
 	// std::ifstream file("./dataset/Gowalla");
@@ -303,13 +336,21 @@ int main()
         return 1;
     }
 	int FileLine = GetFileLine(path);
-	double ratio = 0.2;
+	double ratio = 1;
+
+	// //查看MostCFs
+	// int MostCFs = 0;
+	// ecall_get_MostCFs(eid,&MostCFs,sizeof(MostCFs));
+	// std::cout<<"MostCFs:"<<MostCFs<<std::endl;
+
+
 
 	// 逐行读取文件
     std::string line;
 	uint64_t set_up_start_time =  timeSinceEpochMillisec();
 	int fakeid = 0;
 	int lineNumber = 0;
+
     while (std::getline(file, line)) {
 		if(lineNumber>=FileLine*ratio){
 			break;
@@ -321,31 +362,33 @@ int main()
         while (iss >> item) {
             items.push_back(item);
         }
-		std::string sw = "friend:"+ items[0];
+		std::string sw = "fd"+items[0];
 		std::string sid = items[1];
-		std::string sname1 = items[2];
-		std::string sname2 = items[3];
-		std::string sname = sname1+sname2;
 
 		//Exact item
 		const char* w = sw.c_str();
 		size_t w_len = sw.length();
 		const char* id = sid.c_str();
 		size_t id_len = sid.length();
+		//mem += (sw.length()+2);
 		ecall_update_data(eid,w, w_len, id, id_len, 1);
+		//std::cout<<mem<<std::endl;
 
-		//Fuzzy item
-		const char* name = sname.c_str();
-		size_t name_len = sname.length();
-		std::vector<std::string> tokens = GetFuzzyTokens(sname);
-		std::stringstream ss;
-		ss<<fakeid;
-		sid = ss.str();
-		fakeid++;
+		// //Fuzzy item
+		// std::string sname1 = items[2];
+		// std::string sname2 = items[3];
+		// std::string sname = sname1+sname2;
+		// const char* name = sname.c_str();
+		// size_t name_len = sname.length();
+		// std::vector<std::string> tokens = GetFuzzyTokens(sname);
+		// std::stringstream ss;
+		// ss<<fakeid;
+		// sid = ss.str();
+		// fakeid++;
 
-		for(int i = 0;i < tokens.size();i++){
-			ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
-		}
+		// for(int i = 0;i < tokens.size();i++){
+		// 	ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
+		// }
 		lineNumber++;
     }
 	file.close();
@@ -364,89 +407,166 @@ int main()
 	std::cout << "XSetMemory: " << XSetMemory <<std::endl;
 	std::cout << "TSetMemory: " << TSetMemory <<std::endl;
 
+
+	std::cout<<std::endl;
 	uint64_t start_time;
 	uint64_t end_time;
 
 	/*******************查询******************/
-	std::string query_str = "friend:200&friend:136";
-	start_time =  timeSinceEpochMillisec();
-	ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
-	end_time =  timeSinceEpochMillisec();
-	
-	std::cout << "********Time for search********" << std::endl;
-    std::cout << "Total time: " <<end_time - start_time << " ms" << std::endl;
 
-	std::cout << "ocall_number: "<<ocall_number<<std::endl;
+	// id: 263: count: 131
+	// id: 284: count: 131
+	// id: 489: count: 131
+	// id: 492: count: 131
+	// id: 498: count: 131
+	// id: 462: count: 132
+	// id: 504: count: 133
+	// id: 560: count: 133
+	// id: 261: count: 134
+	// id: 1478: count: 134
+	//
+	//
+	// id: 1568: count: 130
+	// id: 10119: count: 130
+	// id: 1698: count: 130
+	// id: 1709: count: 130
+	// id: 753: count: 130
+	// id: 5205: count: 130
+	// id: 5208: count: 130
+	// id: 5272: count: 130
+	// id: 6009: count: 130
+	// id: 568: count: 130
 
-	int ecall_number;
-	ecall_get_ecall_number(eid,&ecall_number,sizeof(ecall_number));
-	std::cout << "ecall_number: "<<ecall_number<<std::endl;
+	// id: 1229: count: 20
+	// id: 1384: count: 20
+	// id: 1397: count: 20
+	// id: 1436: count: 20
+	// id: 1662: count: 20
+	// id: 1801: count: 20
+	// id: 2503: count: 20
+	// id: 2599: count: 20
+	// id: 2706: count: 20
+	// id: 2936: count: 20
+
+	// id: 26736: count: 20
+	// id: 6672: count: 20
+	// id: 4357: count: 20
+	// id: 71: count: 20
+	// id: 920: count: 20
+	// id: 1573: count: 20
+	// id: 19961: count: 20
+	// id: 10228: count: 20
+	// id: 1734: count: 20
+	// id: 5383: count: 20
+
+	std::vector<std::string> ids = {"1568","10119","1698","1709","753","5205","5208","5272","6009","568"};
+	//std::vector<std::string> ids = {"26736","6672","4357","71","920","1573","19961","10228","1734","5383"};
+	//std::vector<std::string> ids = {"1229","1384","1397","1436","1662","1801","2503","2599","2706","2936"};
+	//std::vector<std::string> ids = {"21392","7375"};
+
+	std::string query_str = "";
+
+	for(int i=0;i<10;i+=2){
+		//cout<<i<<endl;
+		if(query_str == ""){
+			query_str += ("fd"+ids[i]+"&"+"fd"+ids[i+1]);
+		}else{
+			query_str += ("&fd"+ids[i]+"&"+"fd"+ids[i+1]);
+		}
+		// query_str = "fd1568&fd10119&fd1698&fd1709";
+		// std::cout<<query_str<<std::endl;
+		start_time =  timeSinceEpochMillisec();
+		ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
+		end_time =  timeSinceEpochMillisec();
+		
+		std::cout << "Time for search:"<< query_str << std::endl;
+		std::cout << "Total time: " <<end_time - start_time << " ms" << std::endl;
+		std::cout << "batch time: " <<maxTimeCost << " ms" << std::endl;
+
+		std::cout << "ocall_number: "<<ocall_number<<std::endl;
+		ocall_number = 0;
+
+		// int ecall_number;
+		// ecall_get_ecall_number(eid,&ecall_number,sizeof(ecall_number));
+		// std::cout << "ecall_number: "<<ecall_number<<std::endl;
+
+		//清除SGX中的CF
+		ecall_clear_CFs(eid);
+		std::cout << "load CF Total time: " <<load_CF_total_time<< " ms" << std::endl;
+		load_CF_total_time = 0;
+		maxTimeCost = 0;
+
+		std::cout << std::endl;
+
+	}
 
 	//查看MostCFs
 	int MostCFs = 0;
 	ecall_get_MostCFs(eid,&MostCFs,sizeof(MostCFs));
-	std::cout<<MostCFs<<std::endl;
+	std::cout<<"MostCFs:"<<MostCFs<<std::endl;
+
+	//std::cout << "ocall time test: " <<ocall_end_timestamp - ocall_start_timestamp<< " ms" << std::endl;
 	
-	/****************************test******************************/
-	// //测试Stark
-	// std::string input = "Stark";
-	// std::vector<std::string> tokens;
-	// for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
-    //     std::string substring = input.substr(i, FuzzyCut);
-	// 	std::cout<<substring<<std::endl;
-    //     tokens.push_back(substring);
-    // }
-	// std::string sid = "1001";
-	// for(int i = 0;i < tokens.size();i++){
-	// 	ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
-	// }
+	// /****************************test******************************/
+	// // //测试Stark
+	// // std::string input = "Stark";
+	// // std::vector<std::string> tokens;
+	// // for(int i = 0;i <= input.length() - FuzzyCut; ++i) {
+    // //     std::string substring = input.substr(i, FuzzyCut);
+	// // 	std::cout<<substring<<std::endl;
+    // //     tokens.push_back(substring);
+    // // }
+	// // std::string sid = "1001";
+	// // for(int i = 0;i < tokens.size();i++){
+	// // 	ecall_update_data_Fuzzy(eid, tokens[i].c_str() ,tokens[i].length() , sid.c_str(), sid.length(), i ,1);
+	// // }
 
-	// std::string searchinput = "tark";
-	// ecall_Conjunctive_Fuzzy_Social_Search(eid,(char*)searchinput.c_str());
+	// // std::string searchinput = "tark";
+	// // ecall_Conjunctive_Fuzzy_Social_Search(eid,(char*)searchinput.c_str());
 
 
-	// //测试Update
-	// std::string sw = "friend:1";
-	// std::vector<std::string> sid = {"1001","1002","1003","1004"};
+	// // //测试Update
+	// // std::string sw = "friend:1";
+	// // std::vector<std::string> sid = {"1001","1002","1003","1004"};
 
-	// for(int i=0;i<sid.size();i++){
-	// 	const char* w = sw.c_str();
-	// 	size_t w_len = sw.length();
-	// 	const char* id = sid[i].c_str();
-	// 	size_t id_len = sid[i].length(); 
-	// 	ecall_update_data(eid,w, w_len, id, id_len, 1);
-	// }
+	// // for(int i=0;i<sid.size();i++){
+	// // 	const char* w = sw.c_str();
+	// // 	size_t w_len = sw.length();
+	// // 	const char* id = sid[i].c_str();
+	// // 	size_t id_len = sid[i].length(); 
+	// // 	ecall_update_data(eid,w, w_len, id, id_len, 1);
+	// // }
 	
 
-	// std::string sw2 = "friend:2";
-	// std::vector<std::string> sid2 = {"1001","1005","1006"};
-	// for(int i=0;i<sid2.size();i++){
-	// 	const char* w2 = sw2.c_str();
-	// 	size_t w_len2 = sw2.length();
-	// 	const char* id2 = sid2[i].c_str();
-	// 	size_t id_len2 = sid2[i].length(); 
-	// 	ecall_update_data(eid,w2, w_len2, id2, id_len2, 1);
-	// }
+	// // std::string sw2 = "friend:2";
+	// // std::vector<std::string> sid2 = {"1001","1005","1006"};
+	// // for(int i=0;i<sid2.size();i++){
+	// // 	const char* w2 = sw2.c_str();
+	// // 	size_t w_len2 = sw2.length();
+	// // 	const char* id2 = sid2[i].c_str();
+	// // 	size_t id_len2 = sid2[i].length(); 
+	// // 	ecall_update_data(eid,w2, w_len2, id2, id_len2, 1);
+	// // }
 
-	// //测试Search
-	// std::string query_str = "friend:1&friend:2";
-	// ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
-
-
-	// size_t test = 1;
-	// ecall_test_int(eid,test);
+	// // //测试Search
+	// // std::string query_str = "friend:1&friend:2";
+	// // ecall_Conjunctive_Exact_Social_Search(eid,(char*)query_str.c_str());
 
 
+	// // size_t test = 1;
+	// // ecall_test_int(eid,test);
 
 
-	// //测试hash256结果是否相同
-	// std::string xtag = "friend:123122";
-	// const char* cxtag = xtag.c_str();
-	// string outhash = HashFunc::sha256(cxtag);
-	// print_bytes((uint8_t*)outhash.c_str(),outhash.length());
-	// //为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
-	// ecall_hash_test(eid,cxtag,xtag.length()+1);
-	//
+
+
+	// // //测试hash256结果是否相同
+	// // std::string xtag = "friend:123122";
+	// // const char* cxtag = xtag.c_str();
+	// // string outhash = HashFunc::sha256(cxtag);
+	// // print_bytes((uint8_t*)outhash.c_str(),outhash.length());
+	// // //为什么要＋1：sgx ecall需要吧终止符传入，不然里面data会多出一位
+	// // ecall_hash_test(eid,cxtag,xtag.length()+1);
+	// //
 	return 0;
 }
 

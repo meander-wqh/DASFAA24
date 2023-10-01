@@ -35,7 +35,7 @@ struct Bucket{
 
 class CuckooFilter{
 public:
-	int capacity;
+	int capacity; 
 	size_t single_table_length;
 	size_t fingerprint_size;//为了读写使用的8为倍数的size
 	size_t exact_fingerprint_size;//由于分裂,使用的确切size

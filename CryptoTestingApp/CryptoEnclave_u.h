@@ -16,6 +16,22 @@
 extern "C" {
 #endif
 
+#ifndef OCALL_START_TIME_DEFINED__
+#define OCALL_START_TIME_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_start_time, (void));
+#endif
+#ifndef OCALL_END_TIME_DEFINED__
+#define OCALL_END_TIME_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_end_time, (void));
+#endif
+#ifndef OCALL_START_TIME_TEST_DEFINED__
+#define OCALL_START_TIME_TEST_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_start_time_test, (void));
+#endif
+#ifndef OCALL_END_TIME_TEST_DEFINED__
+#define OCALL_END_TIME_TEST_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_end_time_test, (void));
+#endif
 #ifndef OCALL_TEST2_DEFINED__
 #define OCALL_TEST2_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_test2, (char* encrypted_content, size_t length_content));
@@ -122,6 +138,7 @@ sgx_status_t ecall_Conjunctive_Fuzzy_Social_Search(sgx_enclave_id_t eid, char* s
 sgx_status_t ecall_test_int(sgx_enclave_id_t eid, size_t test);
 sgx_status_t ecall_get_MostCFs(sgx_enclave_id_t eid, int* test, size_t int_size);
 sgx_status_t ecall_get_ecall_number(sgx_enclave_id_t eid, int* test, size_t int_size);
+sgx_status_t ecall_clear_CFs(sgx_enclave_id_t eid);
 
 #ifdef __cplusplus
 }
